@@ -1,0 +1,5 @@
+module github.com/thetreep/toolbox
+
+go 1.12
+
+require github.com/kr/pretty v0.2.0
