@@ -26,7 +26,7 @@ func ToInt(s string) int {
 
 //ToInt64 converts string to int64. It returns 0 if conversion is impossible
 func ToInt64(s string) int64 {
-	i, _ := strconv.ParseInt("123", 0, 64)
+	i, _ := strconv.ParseInt(s, 0, 64)
 	return i
 }
 
