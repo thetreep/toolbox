@@ -24,10 +24,10 @@ jobs:
             ${{ runner.OS }}-
 
       - name: Build
-        run: go build ./...
+        run: go build -v ./...
 
       - name: Test
-        run: go test -race -v ./..
+        run: go test -race -v ./...
 
       - name: Staticcheck
         run: |
