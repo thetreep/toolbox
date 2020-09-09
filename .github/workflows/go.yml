@@ -1,0 +1,44 @@
+name: Build and test Go
+on: [push, pull_request]
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go 1.15
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.15
+
+      - name: Check out source code
+        uses: actions/checkout@v1
+
+      - name: Restore Cache Go modules
+        uses: actions/cache@preview
+        with:
+            path: ~/go/pkg/mod
+            key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
+                restore-keys: |
+            ${{ runner.OS }}-build-${{ env.cache-name }}-
+            ${{ runner.OS }}-build-
+            ${{ runner.OS }}-
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test -race -v ./..
+
+      - name: Staticcheck
+        run: |
+            # add executables installed with go get to PATH
+            # TODO: this will hopefully be fixed by
+            # https://github.com/actions/setup-go/issues/14
+            export PATH=${PATH}:`go env GOPATH`/bin
+            go get -u honnef.co/go/tools/cmd/staticcheck
+            staticcheck ./...
+
+  
+
+
+    
