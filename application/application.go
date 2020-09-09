@@ -23,10 +23,10 @@ const (
 	AppAuthor = "The Treep Backend Team"
 
 	// AppCopyright specifies the app's copyright.
-	AppCopyright = "MIT"
+	AppCopyright = "TheTreep"
 
 	// EnvironmentCliFlag specifies the environment in which the app runs.
-	EnvironmentCliFlag = "thetreep_ENV"
+	EnvironmentCliFlag = "THETREEP_ENV"
 
 	// DefaultEnvironment is the default environment in which the app runs.
 	DefaultEnvironment = "dev"
