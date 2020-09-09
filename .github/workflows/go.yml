@@ -13,12 +13,12 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v1
 
-      - name: Restore Cache Go modules
+      - name: Cache Go modules
         uses: actions/cache@preview
         with:
-            path: ~/go/pkg/mod
-            key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
-                restore-keys: |
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
             ${{ runner.OS }}-build-${{ env.cache-name }}-
             ${{ runner.OS }}-build-
             ${{ runner.OS }}-
@@ -31,14 +31,9 @@ jobs:
 
       - name: Staticcheck
         run: |
-            # add executables installed with go get to PATH
-            # TODO: this will hopefully be fixed by
-            # https://github.com/actions/setup-go/issues/14
-            export PATH=${PATH}:`go env GOPATH`/bin
-            go get -u honnef.co/go/tools/cmd/staticcheck
-            staticcheck ./...
-
-  
-
-
-    
+          # add executables installed with go get to PATH
+          # TODO: this will hopefully be fixed by
+          # https://github.com/actions/setup-go/issues/14
+          export PATH=${PATH}:`go env GOPATH`/bin
+          go get -u honnef.co/go/tools/cmd/staticcheck
+          staticcheck ./...
