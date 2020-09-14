@@ -50,23 +50,6 @@ func TestEqualNorm(t *testing.T) {
 	}
 }
 
-func TestRandStringRunes(t *testing.T) {
-	tcases := []struct {
-		n, expLen int
-	}{
-		{0, 0},
-		{1, 1},
-		{10, 10},
-		{33, 33},
-		{200, 200},
-		{5555, 5555},
-		{123456, 123456},
-	}
-	for _, tcase := range tcases {
-		assert.Len(t, grammar.RandStringRunes(tcase.n), tcase.expLen)
-	}
-}
-
 func TestCapitalize(t *testing.T) {
 	tcases := []struct {
 		in, expectOut string
