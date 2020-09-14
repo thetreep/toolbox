@@ -26,8 +26,8 @@ func TestNormalize(t *testing.T) {
 			assert.Equal(t, tcase.expectOut, got)
 		}
 	})
-
 }
+
 func TestCapitalize(t *testing.T) {
 	tcases := []struct {
 		in, expectOut string
@@ -44,6 +44,7 @@ func TestCapitalize(t *testing.T) {
 		assert.Equal(t, tcase.expectOut, got)
 	}
 }
+
 func TestJustCapitalize(t *testing.T) {
 	tcases := []struct {
 		in, expectOut string

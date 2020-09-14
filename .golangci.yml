@@ -43,3 +43,13 @@ linters:
     - deadcode
     - unused
     - gomnd
+    - gci
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: grammar/grammar.go
+      linters:
+        - gochecknoglobals
+        - lll
+        - gosec
