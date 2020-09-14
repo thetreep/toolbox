@@ -1,21 +1,32 @@
-package grammar
+package grammar_test
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/thetreep/toolbox/grammar"
+	"github.com/thetreep/toolbox/tests"
+)
 
 func TestNormalize(t *testing.T) {
-	tcases := []struct {
-		in, expectOut string
-	}{
-		{"test", "test"},
-		{"test1234", "test1234"},
-		{"pierre-francois", "pierre francois"},
-		{"Pierre-Francois", "pierre francois"},
-	}
-	for _, tcase := range tcases {
-		if got, want := Normalize(tcase.in), tcase.expectOut; got != want {
-			t.Fatalf("got %s, want %s", got, want)
+	tests.Setup(t, func(ctx context.Context) {
+		tcases := []struct {
+			in, expectOut string
+		}{
+			{"test", "test"},
+			{"test1234", "test1234"},
+			{"pierre-francois", "pierre francois"},
+			{"Pierre-Francois", "pierre francois"},
 		}
-	}
+
+		for _, tcase := range tcases {
+			got := grammar.Normalize(tcase.in)
+			assert.Equal(t, tcase.expectOut, got)
+		}
+	})
+
 }
 func TestCapitalize(t *testing.T) {
 	tcases := []struct {
@@ -27,10 +38,10 @@ func TestCapitalize(t *testing.T) {
 		{"pierre-francois", "Pierre-francois"},
 		{"Pierre-Francois", "Pierre-francois"},
 	}
+
 	for _, tcase := range tcases {
-		if got, want := Capitalize(tcase.in), tcase.expectOut; got != want {
-			t.Fatalf("got %s, want %s", got, want)
-		}
+		got := grammar.Capitalize(tcase.in)
+		assert.Equal(t, tcase.expectOut, got)
 	}
 }
 func TestJustCapitalize(t *testing.T) {
@@ -43,31 +54,30 @@ func TestJustCapitalize(t *testing.T) {
 		{"pierre-francois", "Pierre-francois"},
 		{"Pierre-Francois", "Pierre-Francois"},
 	}
+
 	for _, tcase := range tcases {
-		if got, want := JustCapitalize(tcase.in), tcase.expectOut; got != want {
-			t.Fatalf("got %s, want %s", got, want)
-		}
+		got := grammar.JustCapitalize(tcase.in)
+		assert.Equal(t, tcase.expectOut, got)
 	}
 }
 
 func TestSanitizePhone(t *testing.T) {
 	tcases := []struct {
-		got  string
-		want string
+		in        string
+		expectOut string
 	}{
-		{got: "0123456789", want: "0123456789"},
-		{got: "0123456789   ", want: "0123456789"},
-		{got: "+33123456789", want: "+33123456789"},
-		{got: "01.23.45.67.89", want: "0123456789"},
-		{got: "123-456-789", want: "123456789"},
-		{got: "01 23 45 67 89", want: "0123456789"},
-		{got: "(+33) 123-456-789", want: "+33123456789"},
-		{got: "(+33) 123 456 789", want: "+33123456789"},
-		{got: "01-23-45-67-89", want: "0123456789"},
+		{in: "0123456789", expectOut: "0123456789"},
+		{in: "0123456789   ", expectOut: "0123456789"},
+		{in: "+33123456789", expectOut: "+33123456789"},
+		{in: "01.23.45.67.89", expectOut: "0123456789"},
+		{in: "123-456-789", expectOut: "123456789"},
+		{in: "01 23 45 67 89", expectOut: "0123456789"},
+		{in: "(+33) 123-456-789", expectOut: "+33123456789"},
+		{in: "(+33) 123 456 789", expectOut: "+33123456789"},
+		{in: "01-23-45-67-89", expectOut: "0123456789"},
 	}
-	for i, tcase := range tcases {
-		if got, want := SanitizePhone(tcase.got), tcase.want; got != want {
-			t.Fatalf("%d: got %s, want %s", i+1, got, want)
-		}
+	for _, tcase := range tcases {
+		got := grammar.SanitizePhone(tcase.in)
+		assert.Equal(t, tcase.expectOut, got)
 	}
 }
