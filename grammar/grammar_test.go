@@ -28,6 +28,45 @@ func TestNormalize(t *testing.T) {
 	})
 }
 
+func TestEqualNorm(t *testing.T) {
+	tcases := []struct {
+		s1, s2       string
+		shoudBeEqual bool
+	}{
+		{"test", "test", true},
+		{"test1234", "TEST1234", true},
+		{"test1234", "TEST", false},
+		{"PieRre-francois", "pierre francois", true},
+		{"André-Niño", "ANDRE-NINO", true},
+		{"André-Niño", "Andre ninho", false},
+	}
+	for _, tcase := range tcases {
+		got := grammar.EqualNorm(tcase.s1, tcase.s2)
+		if tcase.shoudBeEqual {
+			assert.True(t, got)
+		} else {
+			assert.False(t, got)
+		}
+	}
+}
+
+func TestRandStringRunes(t *testing.T) {
+	tcases := []struct {
+		n, expLen int
+	}{
+		{0, 0},
+		{1, 1},
+		{10, 10},
+		{33, 33},
+		{200, 200},
+		{5555, 5555},
+		{123456, 123456},
+	}
+	for _, tcase := range tcases {
+		assert.Len(t, grammar.RandStringRunes(tcase.n), tcase.expLen)
+	}
+}
+
 func TestCapitalize(t *testing.T) {
 	tcases := []struct {
 		in, expectOut string
