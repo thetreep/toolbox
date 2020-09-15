@@ -1,0 +1,12 @@
+version: "3.7"
+services:
+  toolbox:
+    container_name: test
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - "./:/go/src/github.com/thetreep/toolbox"
+    working_dir: /go/src/github.com/thetreep/toolbox
+    command: "go test -v -timeout 5m -parallel=4 ./..."
