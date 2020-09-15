@@ -1,0 +1,55 @@
+run:
+  # default concurrency is a available CPU number
+  concurrency: 4
+
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  deadline: 5m
+
+linters-settings:
+  govet:
+    check-shadowing: false
+  golint:
+    min-confidence: 0
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 150
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  misspell:
+    locale: US
+  lll:
+    line-length: 90
+  funlen:
+    lines: 80
+    statements: 50
+  goimports:
+    local-prefixes: github.com/golangci/golangci-lint
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+    disabled-checks:
+      - wrapperFunc
+      - commentFormatting
+
+linters:
+  enable-all: true
+  disable:
+    - deadcode
+    - unused
+    - gomnd
+    - gci
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: grammar/grammar.go
+      linters:
+        - gochecknoglobals
+        - lll
+        - gosec
