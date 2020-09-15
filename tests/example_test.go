@@ -30,5 +30,9 @@ func TestShowCaseAssert(t *testing.T) {
 			{"test1234", "test124"},
 			{&struct{ r int }{1}, &struct{ r int64 }{2}},
 		}
+
+		for _, tcase := range tcases {
+			assert.NotEqual(t, tcase.expectOut, tcase.in)
+		}
 	})
 }
