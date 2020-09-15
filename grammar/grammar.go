@@ -16,7 +16,7 @@ var (
 	phoneSanitizer = strings.NewReplacer(" ", "", ".", "", "_", "", "(", "", ")", "", "-", "")
 )
 
-//Capitalize sets the first letter in upper case and all the others in lower case
+// Capitalize sets the first letter in upper case and all the others in lower case.
 func Capitalize(s string) string {
 	if s == "" {
 		return ""

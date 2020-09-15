@@ -42,6 +42,7 @@ func TestEqualNorm(t *testing.T) {
 	}
 	for _, tcase := range tcases {
 		got := grammar.EqualNorm(tcase.s1, tcase.s2)
+
 		if tcase.shoudBeEqual {
 			assert.True(t, got)
 		} else {
