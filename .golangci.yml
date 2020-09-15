@@ -53,3 +53,8 @@ issues:
         - gochecknoglobals
         - lll
         - gosec
+    - path: tempo/tempo.go
+      linters:
+        - gochecknoglobals
+        - lll
+        - gosec

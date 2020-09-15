@@ -9,15 +9,17 @@ import (
 )
 
 var (
-	errISO8601DurationFormat = errors.New("bad iso8601 duration format")
-	durationRgx              = regexp.MustCompile(`^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:.\d+)?)S)?$`)
+	// ErrISO8601DurationFormat occurs on bad iso8601 duration format.
+	ErrISO8601DurationFormat = errors.New("bad iso8601 duration format")
+	//_iso8061DurationRgx identifies each duration units from iso8601 duration format.
+	_iso8061DurationRgx = regexp.MustCompile(`^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:.\d+)?)S)?$`)
 )
 
-//ParseISO8601Duration converts and ISO8601 duration string to time.Duration
+// ParseISO8601Duration converts ISO8601 duration to time.Duration.
 func ParseISO8601Duration(val string) (time.Duration, error) {
-	matches := durationRgx.FindStringSubmatch(val)
+	matches := _iso8061DurationRgx.FindStringSubmatch(val)
 	if len(matches) != 7 {
-		return 0, errISO8601DurationFormat
+		return 0, ErrISO8601DurationFormat
 	}
 
 	i64 := convert.ToInt64
@@ -34,5 +36,6 @@ func ParseISO8601Duration(val string) (time.Duration, error) {
 	duration += time.Duration(hours) * time.Hour
 	duration += time.Duration(minutes) * time.Minute
 	duration += time.Duration(seconds) * time.Second
+
 	return duration, nil
 }
