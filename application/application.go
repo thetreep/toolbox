@@ -91,7 +91,7 @@ func NewApplication(config Config, run func(context.Context, Info) error) *Appli
 					2*time.Second,
 				)
 
-				_, span := trace.StartSpan(ctx, "main")
+				_, span := trace.StartSpan(ctx, config.Name)
 				span.AddAttributes(trace.StringAttribute("version", version))
 				defer span.End()
 
