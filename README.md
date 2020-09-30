@@ -1,6 +1,6 @@
 # Toolbox
 
-![CI](https://github.com/thetreep/toolbox/workflows/CI/badge.svg?branch=master)
+![Build and Test Go](https://github.com/thetreep/toolbox/workflows/Build%20and%20test%20Go/badge.svg)
 
 This repository holds a set of methods and interfaces to build production ready golang apps.
 
