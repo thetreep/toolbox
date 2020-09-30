@@ -13,6 +13,11 @@ jobs:
       - name: Check out source code
         uses: actions/checkout@v1
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+            version: v1.31
+
       - name: Cache Go modules
         uses: actions/cache@preview
         with:
@@ -29,7 +34,4 @@ jobs:
       - name: Test
         run: go test -race -v ./...
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-            version: v1.31
+
