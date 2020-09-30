@@ -1,9 +1,4 @@
-ifeq ($(CI_COMMIT_REF_NAME),)
-	branch 	= $(shell git rev-parse --abbrev-ref HEAD)
-else
-	branch 	= master(tag:$(CI_COMMIT_REF_NAME))
-endif
-
+branch 	= $(shell git rev-parse --abbrev-ref HEAD)
 commit 		= $(shell git log --pretty=format:'%H' -n 1)
 now 		= $(shell date "+%Y-%m-%d %T UTC%z")
 compiler 	= $(shell go version)
