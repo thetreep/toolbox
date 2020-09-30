@@ -3,14 +3,11 @@ package application
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/urfave/cli"
 	"go.opencensus.io/trace"
 
 	"github.com/thetreep/toolbox/binary"
-	"github.com/thetreep/toolbox/process"
-	"github.com/thetreep/toolbox/random"
 )
 
 // Application represents the cli application which will run when the binary is run.
@@ -81,15 +78,7 @@ func NewApplication(config Config, run func(context.Context, Info) error) *Appli
 					Values:      values,
 				}
 
-				ctx := random.NewContext(
-					context.Background(),
-					random.NewIDGenerator(),
-				)
-
-				ctx = process.NewContext(
-					ctx,
-					2*time.Second,
-				)
+				ctx := context.Background()
 
 				_, span := trace.StartSpan(ctx, config.Name)
 				span.AddAttributes(trace.StringAttribute("version", version))
