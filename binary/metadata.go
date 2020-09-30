@@ -23,9 +23,9 @@ func (m Metadata) ToMap() map[string]interface{} {
 	}
 }
 
-var binaryMetadata = Metadata{
+var binaryMetadata = Metadata{ // nolint
 	StartTime: time.Now(),
-} //
+}
 
 // BinaryMetadata return metadata on the given binary.
 func BinaryMetadata() Metadata { // nolint
@@ -33,6 +33,6 @@ func BinaryMetadata() Metadata { // nolint
 }
 
 // SetBinaryMetadata sets metadata.
-func SetBinaryMetadata(m Metadata) {
+func SetBinaryMetadata(m Metadata) { // nolint
 	binaryMetadata = m
 }
