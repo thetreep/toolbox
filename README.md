@@ -29,3 +29,10 @@ make doc
 ```
 
 then wait 1 min and go to `http://localhost:6060/pkg/github.com?thetreep/toolbox/`
+
+## Enable Git Hooks
+
+```
+git config --local core.hooksPath .git-hooks/
+GO111MODULE=on go get mvdan.cc/gofumpt
+```
