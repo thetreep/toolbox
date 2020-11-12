@@ -31,7 +31,6 @@ func TestNormalize(t *testing.T) {
 
 func TestEqualNorm(t *testing.T) {
 	tests.Setup(t, func(ctx context.Context) {
-
 		type tcase struct {
 			s1, s2 string
 			eq     bool
@@ -62,7 +61,6 @@ func TestEqualNorm(t *testing.T) {
 				t.Fatal("unexpected result")
 			}
 		}
-
 	})
 }
 

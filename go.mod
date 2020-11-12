@@ -8,5 +8,5 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
 	golang.org/x/text v0.3.3
-	mvdan.cc/gofumpt v0.0.0-20200802201014-ab5a8192947d // indirect
+	mvdan.cc/gofumpt v0.0.0-20201107090320-a024667a00f1 // indirect
 )
