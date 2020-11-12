@@ -3,6 +3,7 @@ package grammar_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -24,6 +25,38 @@ func TestNormalize(t *testing.T) {
 		for _, tcase := range tcases {
 			got := grammar.Normalize(tcase.in)
 			assert.Equal(t, tcase.expectOut, got)
+		}
+	})
+}
+
+func TestEqualNorm(t *testing.T) {
+	tests.Setup(t, func(ctx context.Context) {
+		tcases := []struct {
+			s1, s2 string
+			eq     bool
+		}{
+			{"test", "test", true},
+			{"test1234", "test1234", true},
+			{"pierre-françois", "pierre francois", true},
+			{"Pierre-François", "pierre-francois", true},
+			{"Pierre François", "Pierre-François", true},
+			{"Pierre-François", "pierre francois", true},
+			{"  Pierre-François  ", "pierre ss  francois", false},
+			{"  Pierre-François  ", "pierre   francois", true},
+		}
+
+		ch := make(chan bool, len(tcases))
+		for _, tcase := range tcases {
+			go func(s1, s2 string) {
+				ch <- grammar.EqualNorm(s1, s2)
+			}(tcase.s1, tcase.s2)
+		}
+
+		time.Sleep(1 * time.Second)
+
+		for _, tcase := range tcases {
+			v := <-ch
+			assert.Equal(t, tcase.eq, v)
 		}
 	})
 }
