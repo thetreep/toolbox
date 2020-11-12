@@ -48,6 +48,7 @@ func Normalize(str string) string {
 	defer lock.Unlock()
 
 	out, _, _ := transform.String(normalizer, str)
+
 	return strings.ToLower(strings.TrimSpace(reg.ReplaceAllString(out, " ")))
 }
 
