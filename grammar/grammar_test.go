@@ -38,11 +38,11 @@ func TestEqualNorm(t *testing.T) {
 
 		tcases := []tcase{
 			{"test", "test", true},
-			{"test1234", "test1234", true},
-			{"pierre-françois", "pierre francois", true},
-			{"Pierre-François", "pierre francois", true},
-			{"  Pierre-François  ", "pierre ss  francois", false},
-			{"  Pierre-François  ", "pierre   francois", true},
+			{"test1234", "TEST1234", true},
+			{"test1234", "TEST", false},
+			{"PieRre-francois", "pierre francois", true},
+			{"André-Niño", "ANDRE-NINO", true},
+			{"André-Niño", "Andre ninho", false},
 		}
 
 		ok := make(chan bool, len(tcases))

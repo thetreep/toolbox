@@ -1,7 +1,6 @@
 package grammar
 
 import (
-	"math/rand"
 	"regexp"
 	"strings"
 	"sync"
@@ -17,18 +16,7 @@ var (
 	normalizer     = transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 	reg            = regexp.MustCompile("[^a-zA-Z0-9]+")
 	phoneSanitizer = strings.NewReplacer(" ", "", ".", "", "_", "", "(", "", ")", "", "-", "")
-	letterRunes    = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
-
-// RandStringRunes generates a random n-length string.
-func RandStringRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-
-	return string(b)
-}
 
 // Capitalize sets the first letter in upper case and all the others in lower case.
 func Capitalize(s string) string {
