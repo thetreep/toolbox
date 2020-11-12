@@ -31,33 +31,38 @@ func TestNormalize(t *testing.T) {
 
 func TestEqualNorm(t *testing.T) {
 	tests.Setup(t, func(ctx context.Context) {
-		tcases := []struct {
+
+		type tcase struct {
 			s1, s2 string
 			eq     bool
-		}{
+		}
+
+		tcases := []tcase{
 			{"test", "test", true},
 			{"test1234", "test1234", true},
 			{"pierre-françois", "pierre francois", true},
-			{"Pierre-François", "pierre-francois", true},
-			{"Pierre François", "Pierre-François", true},
 			{"Pierre-François", "pierre francois", true},
 			{"  Pierre-François  ", "pierre ss  francois", false},
 			{"  Pierre-François  ", "pierre   francois", true},
 		}
 
-		ch := make(chan bool, len(tcases))
-		for _, tcase := range tcases {
-			go func(s1, s2 string) {
-				ch <- grammar.EqualNorm(s1, s2)
-			}(tcase.s1, tcase.s2)
+		ok := make(chan bool, len(tcases))
+		for i, tc := range tcases {
+			go func(i int, tc tcase) {
+				got := grammar.EqualNorm(tc.s1, tc.s2)
+				ok <- assert.Equal(t, got, tc.eq, "case #%d %s==%s", i, tc.s1, tc.s2)
+			}(i+1, tc)
 		}
 
 		time.Sleep(1 * time.Second)
+		close(ok)
 
-		for _, tcase := range tcases {
-			v := <-ch
-			assert.Equal(t, tcase.eq, v)
+		for expected := range ok {
+			if !expected {
+				t.Fatal("unexpected result")
+			}
 		}
+
 	})
 }
 
