@@ -7,6 +7,8 @@ require (
 	github.com/kr/pretty v0.2.1
 	github.com/kr/text v0.2.0 // indirect
 	github.com/stretchr/testify v1.4.0
+	github.com/urfave/cli v1.22.4
+	go.opencensus.io v0.22.4
 	golang.org/x/text v0.3.3
 	mvdan.cc/gofumpt v0.0.0-20201107090320-a024667a00f1 // indirect
 )
