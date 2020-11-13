@@ -44,7 +44,6 @@ func SanitizePhone(phone string) string {
 
 // Normalize normalizes a string by replacing special letter by its normalized version (e.g. : `é` -> `e`).
 func Normalize(str string) string {
-	// out, _, _ := transform.String(normalizer(), str)
 	out, _, _ := transform.String(normalizer(), str)
 
 	return strings.ToLower(strings.TrimSpace(reg.ReplaceAllString(out, " ")))
