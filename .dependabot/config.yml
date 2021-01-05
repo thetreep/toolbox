@@ -1,0 +1,10 @@
+version: 1
+update_configs:
+  - package_manager: "go:modules"
+    directory: "/"
+    update_schedule: "weekly"
+    target_branch: "dev"
+    default_reviewers:
+      - "julakmane"
+      - "fxaguessy"
+      - "EarvinKayonga"
