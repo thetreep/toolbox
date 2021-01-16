@@ -27,6 +27,12 @@ const (
 
 	// DefaultEnvironment is the default environment in which the app runs.
 	DefaultEnvironment = "dev"
+
+	// DefaultConfigurationPath specifies the default path of the configuration file.
+	DefaultConfigurationPath = "configuration.yml"
+
+	// ConfigurationCliFlag specifies the path of the configuration file.
+	ConfigurationCliFlag = "THETREEP_CONF_FILE"
 )
 
 // NewApplication returns a new Application ready to `Run`.
@@ -41,7 +47,11 @@ func NewApplication(config Config, run func(context.Context, Info) error) *Appli
 		config.Metadata.Sha,
 	)
 
-	flags := []cli.Flag{EnvironmentFlag()}
+	flags := []cli.Flag{
+		EnvironmentFlag(),
+		ConfigurationFlag(),
+	}
+
 	for i := range config.AdditionalFlags {
 		flags = append(flags, &config.AdditionalFlags[i])
 	}
@@ -74,8 +84,9 @@ func NewApplication(config Config, run func(context.Context, Info) error) *Appli
 				}
 
 				info := Info{
-					Environment: GetEnvironment(c),
-					Values:      values,
+					Environment:       GetEnvironment(c),
+					ConfigurationPath: GetConfigPathFromContext(c),
+					Values:            values,
 				}
 
 				ctx := context.Background()
@@ -103,6 +114,26 @@ func EnvironmentFlag() cli.StringFlag {
 // GetEnvironment returns environment.
 func GetEnvironment(c *cli.Context) string {
 	return c.GlobalString("environment")
+}
+
+// GetConfigPathFromContext reads the configuration file path from context.
+func GetConfigPathFromContext(ctx *cli.Context) string {
+	path := ctx.GlobalString("configuration")
+	if path == "" {
+		return DefaultConfigurationPath
+	}
+
+	return path
+}
+
+// ConfigurationFlag creates a Flag for the cli app.
+func ConfigurationFlag() cli.StringFlag {
+	return cli.StringFlag{
+		Name:   "configuration",
+		Usage:  "path to configuration file (yml)",
+		EnvVar: ConfigurationCliFlag,
+		Value:  DefaultConfigurationPath,
+	}
 }
 
 // GetFlagFromContext returns a flag value.
