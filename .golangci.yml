@@ -44,6 +44,7 @@ linters:
     - unused
     - gomnd
     - gci
+    - paralleltest
 
 issues:
   exclude-rules:
@@ -58,3 +59,6 @@ issues:
         - gochecknoglobals
         - lll
         - gosec
+    - path: application/application.go
+      linters:
+        - exhaustivestruct
