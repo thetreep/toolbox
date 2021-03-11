@@ -11,12 +11,12 @@ import (
 )
 
 func Compare(t *testing.T, got, want interface{}, reasons ...string) {
+	t.Helper()
+
 	var reason string
 	if len(reasons) > 0 {
 		reason = reasons[0] + ": "
 	}
-
-	t.Helper()
 
 	if !reflect.DeepEqual(got, want) {
 		var out bytes.Buffer
