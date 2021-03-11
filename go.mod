@@ -1,14 +1,17 @@
 module github.com/thetreep/toolbox
 
-go 1.15
+go 1.16
 
 require (
-	github.com/cockroachdb/errors v1.7.5 // indirect
+	github.com/cockroachdb/errors v1.8.2
+	github.com/cockroachdb/redact v1.0.9 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/kr/pretty v0.2.1
 	github.com/kr/text v0.2.0 // indirect
-	github.com/stretchr/testify v1.4.0
-	github.com/urfave/cli v1.22.4
-	go.opencensus.io v0.22.4
-	golang.org/x/text v0.3.3
-	mvdan.cc/gofumpt v0.0.0-20201107090320-a024667a00f1 // indirect
+	github.com/russross/blackfriday/v2 v2.1.0 // indirect
+	github.com/stretchr/testify v1.6.1
+	github.com/urfave/cli v1.22.5
+	go.opencensus.io v0.23.0
+	golang.org/x/text v0.3.5
 )
