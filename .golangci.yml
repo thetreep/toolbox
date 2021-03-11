@@ -44,7 +44,7 @@ linters:
     - unused
     - gomnd
     - gci
-    #- paralleltest
+    - paralleltest
 
 issues:
   exclude-rules:
