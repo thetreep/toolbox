@@ -2,7 +2,7 @@ package logging
 
 type Noop struct{}
 
-func NoopLogger() LibLogger                             { return &Noop{} }
+func NoopLogger() Logger                                { return &Noop{} }
 func (*Noop) Debugf(format string, args ...interface{}) {}
 func (*Noop) Infof(format string, args ...interface{})  {}
 func (*Noop) Printf(format string, args ...interface{}) {}
@@ -19,3 +19,4 @@ func (*Noop) Error(args ...interface{})                 {}
 func (*Noop) Fatal(args ...interface{})                 {}
 func (*Noop) Panic(args ...interface{})                 {}
 func (*Noop) Debugln(args ...interface{})               {}
+func (e *Noop) WithError(error) Logger                  { return e }

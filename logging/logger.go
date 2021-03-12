@@ -1,8 +1,8 @@
 package logging
 
-// LibLogger is a huge `sorry` interface
+// Logger is a huge `sorry` interface
 // for logging in libraries or service like packages.
-type LibLogger interface {
+type Logger interface {
 	Debugf(format string, args ...interface{})
 	Infof(format string, args ...interface{})
 	Printf(format string, args ...interface{})
@@ -18,4 +18,6 @@ type LibLogger interface {
 	Error(args ...interface{})
 	Fatal(args ...interface{})
 	Panic(args ...interface{})
+
+	WithError(error) Logger
 }
