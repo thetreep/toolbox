@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "master"
+    reviewers:
+      - "julakmane"
+      - "fxaguessy"
+      - "EarvinKayonga"
+    labels:
+      - "gomod"
+      - "dependencies"
+    open-pull-requests-limit: 10
