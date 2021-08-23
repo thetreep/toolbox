@@ -10,8 +10,9 @@ import (
 
 // DefaultClient is a default http.Client with
 // tracing enabled.
-var DefaultClient = http.Client{
-	Timeout: time.Duration(30 * time.Second),
+// nolint
+var DefaultClient = &http.Client{
+	Timeout: 30 * time.Second,
 	Transport: &ochttp.Transport{
 		Propagation: &propagation.HTTPFormat{},
 	},
