@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli v1.22.5
 	go.opencensus.io v0.23.0
-	golang.org/x/text v0.3.6
+	golang.org/x/text v0.3.7
 )
 
 require (
