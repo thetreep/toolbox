@@ -2,7 +2,7 @@ package tracing
 
 import (
 	"contrib.go.opencensus.io/exporter/stackdriver"
-	"github.com/pkg/errors"
+	"github.com/cockroachdb/errors"
 	"go.opencensus.io/trace"
 )
 
