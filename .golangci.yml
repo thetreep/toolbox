@@ -45,6 +45,7 @@ linters:
     - gomnd
     - gci
     - paralleltest
+    - exhaustivestruct
 
 issues:
   exclude-rules:
