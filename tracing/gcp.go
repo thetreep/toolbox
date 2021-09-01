@@ -15,7 +15,7 @@ func GCloudTracing(projectID string) error {
 	}
 
 	trace.RegisterExporter(exporter)
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(0.1)})
 
 	return nil
 }
