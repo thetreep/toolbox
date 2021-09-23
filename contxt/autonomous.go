@@ -14,7 +14,7 @@ func (c autonomous) Done() <-chan struct{}             { return nil }
 func (c autonomous) Err() error                        { return nil }
 func (c autonomous) Value(key interface{}) interface{} { return c.ctx.Value(key) }
 
-// WithoutCancel returns a context that is never canceled.
+// Autonomous returns a context that is never canceled.
 func Autonomous(ctx context.Context) context.Context {
 	return autonomous{ctx: ctx}
 }

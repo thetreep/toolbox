@@ -11,9 +11,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
-
 	tests.Setup(t, func(c context.Context) {
-
 		tcases := []struct {
 			num      string
 			country  string
@@ -49,11 +47,10 @@ func TestParse(t *testing.T) {
 				expNum:   "0123456789",
 			},
 			{
-				num:      "0033123456789",
-				country:  "FR",
-				format:   phone.E164,
-				sanitize: true,
-				expNum:   "+33123456789",
+				num:     "0033123456789",
+				country: "FR",
+				format:  phone.E164,
+				expNum:  "+33123456789",
 			},
 			{
 				num:      "0033123456789",
@@ -76,7 +73,5 @@ func TestParse(t *testing.T) {
 			assert.ErrorIs(t, tc.expErr, err, name+"unexpected error")
 			assert.Equal(t, tc.expNum, num, name+"unexpected number")
 		}
-
 	})
-
 }
