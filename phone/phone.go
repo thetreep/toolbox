@@ -35,15 +35,15 @@ func Parse(number, isoCountry string, format Format, sanitize bool) (string, err
 	num, err := phonenumbers.Parse(number, isoCountry)
 	if err != nil {
 		if errors.Is(err, phonenumbers.ErrInvalidCountryCode) {
-			return "", ErrInvalidCountry
+			return "", errors.Wrapf(ErrInvalidCountry, err.Error())
 		}
 
 		if errors.Is(err, phonenumbers.ErrNotANumber) ||
 			errors.Is(err, phonenumbers.ErrTooShortNSN) {
-			return "", ErrInvalidNumber
+			return "", errors.Wrap(err, err.Error())
 		}
 
-		return "", errors.Wrap(err, "cannot parse number")
+		return "", errors.Errorf("cannot parse number : %v", err)
 	}
 
 	parsed := phonenumbers.Format(num, phonenumbers.PhoneNumberFormat(format))
