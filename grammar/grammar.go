@@ -15,7 +15,7 @@ var (
 	phoneSanitizer = strings.NewReplacer(" ", "", ".", "", "_", "", "(", "", ")", "", "-", "")
 )
 
-func normalizer() transform.Transformer {
+func Normalizer() transform.Transformer {
 	return transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
 }
 
