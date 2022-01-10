@@ -17,7 +17,7 @@ require (
 )
 
 require (
-	github.com/nyaruka/phonenumbers v1.0.73
+	github.com/nyaruka/phonenumbers v1.0.74
 	github.com/pkg/errors v0.9.1
 )
 
