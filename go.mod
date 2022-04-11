@@ -3,7 +3,7 @@ module github.com/thetreep/toolbox
 go 1.17
 
 require (
-	contrib.go.opencensus.io/exporter/stackdriver v0.13.10
+	contrib.go.opencensus.io/exporter/stackdriver v0.13.11
 	github.com/cockroachdb/errors v1.9.0
 	github.com/cockroachdb/redact v1.1.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
