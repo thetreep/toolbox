@@ -61,3 +61,13 @@ func StrP(s string) *string {
 func TimeP(t time.Time) *time.Time {
 	return &t
 }
+
+func EqualInt64P(a, b *int64) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
