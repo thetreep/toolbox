@@ -11,7 +11,7 @@ require (
 	github.com/kr/pretty v0.3.0
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli v1.22.9
+	github.com/urfave/cli v1.22.10
 	go.opencensus.io v0.23.0
 	golang.org/x/text v0.3.7
 )
@@ -39,7 +39,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/prometheus v2.5.0+incompatible // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
 	golang.org/x/net v0.0.0-20220526153639-5463443f8c37 // indirect
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401 // indirect
 	golang.org/x/sync v0.0.0-20220513210516-0976fa681c29 // indirect
