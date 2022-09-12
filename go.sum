@@ -344,8 +344,8 @@ github.com/nats-io/nkeys v0.0.2/go.mod h1:dab7URMsZm6Z/jp9Z5UGa87Uutgc2mVpXLC4B7
 github.com/nats-io/nkeys v0.1.0/go.mod h1:xpnFELMwJABBLVhffcfd1MZx6VsNRFpEugbxziKVo7w=
 github.com/nats-io/nuid v1.0.1/go.mod h1:19wcPz3Ph3q0Jbyiqsd0kePYG7A95tJPxeL+1OSON2c=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
-github.com/nyaruka/phonenumbers v1.1.0 h1:OvNAOAl4A9a2kNpzziITbUVH4bBBeKHkHl0llPmkxaA=
-github.com/nyaruka/phonenumbers v1.1.0/go.mod h1:cGaEsOrLjIL0iKGqJR5Rfywy86dSkbApEpXuM9KySNA=
+github.com/nyaruka/phonenumbers v1.1.1 h1:fyoZmpLN2VCmAnc51XcrNOUVP2wT1ZzQl348ggIaXII=
+github.com/nyaruka/phonenumbers v1.1.1/go.mod h1:cGaEsOrLjIL0iKGqJR5Rfywy86dSkbApEpXuM9KySNA=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.10.3/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.12.1/go.mod h1:zj2OWP4+oCPe1qIXoGWkgMRwljMUYCdkwsT2108oapk=
