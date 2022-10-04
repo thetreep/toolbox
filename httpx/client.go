@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -12,8 +13,14 @@ import (
 // tracing enabled.
 // nolint
 var DefaultClient = &http.Client{
-	Timeout: 30 * time.Second,
+	Timeout: time.Minute * 15,
 	Transport: &ochttp.Transport{
+		Base: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout: 20 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout: 15 * time.Second,
+		},
 		Propagation: &propagation.HTTPFormat{},
 	},
 }
