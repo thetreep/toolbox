@@ -9,6 +9,7 @@ type Metadata struct {
 	CompiledAt string    `json:"compiledAt"`
 	Sha        string    `json:"sha"`
 	StartTime  time.Time `json:"started_at"`
+  Version    string    `json:"version"`
 }
 
 // ToMap returns a map from given metadata.
@@ -20,6 +21,7 @@ func (m Metadata) ToMap() map[string]interface{} {
 		"CompiledAt": m.CompiledAt,
 		"Sha":        m.Sha,
 		"StartAt":    m.StartTime,
+    "Version":    m.Version,
 	}
 }
 
