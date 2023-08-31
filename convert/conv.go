@@ -34,30 +34,41 @@ func ToInt64(s string) int64 {
 	return i
 }
 
+func PointerTo[T any](v T) *T {
+	return &v
+}
+
+// Deprecated: use PointerTo instead
 func BoolP(v bool) *bool {
 	return &v
 }
 
+// Deprecated: use PointerTo instead
 func Float64P(v float64) *float64 {
 	return &v
 }
 
+// Deprecated: use PointerTo instead
 func FloatP(v float32) *float32 {
 	return &v
 }
 
+// Deprecated: use PointerTo instead
 func Int64P(v int64) *int64 {
 	return &v
 }
 
+// Deprecated: use PointerTo instead
 func IntP(v int) *int {
 	return &v
 }
 
+// Deprecated: use PointerTo instead
 func StrP(s string) *string {
 	return &s
 }
 
+// Deprecated: use PointerTo instead
 func TimeP(t time.Time) *time.Time {
 	return &t
 }
