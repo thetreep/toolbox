@@ -11,7 +11,7 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/stretchr/testify v1.8.4
-	github.com/urfave/cli v1.22.13
+	github.com/urfave/cli v1.22.14
 	go.opencensus.io v0.24.0
 	golang.org/x/text v0.14.0
 )
