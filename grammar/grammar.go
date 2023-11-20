@@ -53,3 +53,10 @@ func Normalize(str string) string {
 func EqualNorm(str1, str2 string) bool {
 	return strings.EqualFold(Normalize(str1), Normalize(str2))
 }
+
+// ContainsNorm checks is a normalized lower string contains another normalized string.
+func ContainsNorm(str1, str2 string) bool {
+	return strings.Contains(
+		strings.ToLower(Normalize(str1)),
+		strings.ToLower(Normalize(str2)))
+}
