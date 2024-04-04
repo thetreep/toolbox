@@ -83,7 +83,12 @@ func EqualInt64P(a, b *int64) bool {
 	return *a == *b
 }
 
-// FloatToString converts any float to a string.
-func FloatToString[F interface{ ~float32 | ~float64 }](f F) string {
-	return strconv.FormatFloat(float64(f), 'f', -1, 64)
+// Float32ToString converts a float32 to a string.
+func Float32ToString(f float32) string {
+	return strconv.FormatFloat(float64(f), 'f', -1, 32)
+}
+
+// Float64ToString converts a float64 to a string.
+func Float64ToString(f float64) string {
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }
