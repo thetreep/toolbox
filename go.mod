@@ -18,7 +18,7 @@ require (
 require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.21.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator v0.45.0
-	github.com/nyaruka/phonenumbers v1.3.0
+	github.com/nyaruka/phonenumbers v1.3.1
 	github.com/pkg/errors v0.9.1
 	go.opentelemetry.io/otel v1.22.0
 	go.opentelemetry.io/otel/sdk v1.22.0
