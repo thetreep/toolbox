@@ -104,38 +104,28 @@ func TimePToRFC3339(t *time.Time) string {
 	return TimeToRFC3339(*t)
 }
 
-func TimeStrToRFC3339(s string) string {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		t, err = time.Parse("20060102T150405", s)
-		if err != nil {
-			return ""
-		}
-	}
-	return TimeToRFC3339(t)
+func TimeStrToRFC3339(s string, sourceLayout string) (string, error) {
+	return ConvertTimeStrToAnotherLayout(s, sourceLayout, time.RFC3339)
 }
 
-func TimeToStr(t time.Time, withTZ bool) string {
+func TimeToStr(t time.Time, targetLayout string, withTZ bool) string {
 	if withTZ {
-		return t.Format(time.RFC3339)
+		return t.Format(targetLayout)
 	}
 	return t.Format("2006-01-02T15:04:05")
 }
 
-func TimeStrToStr(s string, withTZ bool) string {
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		t, err = time.Parse("20060102T150405", s)
-		if err != nil {
-			return ""
-		}
+func ConvertTimeStrToAnotherLayout(s string, sourceLayout string, targetLayout string) (string, error) {
+	t, err := time.Parse(sourceLayout, s)
+	if err == nil {
+		return t.Format(targetLayout), nil
 	}
-	return TimeToStr(t, withTZ)
+	return "", err
 }
 
-func TimePToStr(t *time.Time, withTZ bool) string {
+func TimePToStr(t *time.Time, targetLayout string, withTZ bool) string {
 	if t == nil {
 		return ""
 	}
-	return TimeToStr(*t, withTZ)
+	return TimeToStr(*t, targetLayout, withTZ)
 }
