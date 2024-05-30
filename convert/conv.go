@@ -92,3 +92,40 @@ func Float32ToString(f float32) string {
 func Float64ToString(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
+
+func TimeToRFC3339(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+
+func TimePToRFC3339(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return TimeToRFC3339(*t)
+}
+
+func TimeStrToRFC3339(s string, sourceLayout string) (string, error) {
+	return ConvertTimeStrToAnotherLayout(s, sourceLayout, time.RFC3339)
+}
+
+func TimeToStr(t time.Time, targetLayout string, withTZ bool) string {
+	if withTZ {
+		return t.Format(targetLayout)
+	}
+	return t.Format("2006-01-02T15:04:05")
+}
+
+func ConvertTimeStrToAnotherLayout(s string, sourceLayout string, targetLayout string) (string, error) {
+	t, err := time.Parse(sourceLayout, s)
+	if err == nil {
+		return t.Format(targetLayout), nil
+	}
+	return "", err
+}
+
+func TimePToStr(t *time.Time, targetLayout string, withTZ bool) string {
+	if t == nil {
+		return ""
+	}
+	return TimeToStr(*t, targetLayout, withTZ)
+}
