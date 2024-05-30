@@ -92,3 +92,50 @@ func Float32ToString(f float32) string {
 func Float64ToString(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
+
+func TimeToRFC3339(t time.Time) string {
+	return t.Format(time.RFC3339)
+}
+
+func TimePToRFC3339(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return TimeToRFC3339(*t)
+}
+
+func TimeStrToRFC3339(s string) string {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t, err = time.Parse("20060102T150405", s)
+		if err != nil {
+			return ""
+		}
+	}
+	return TimeToRFC3339(t)
+}
+
+func TimeToStr(t time.Time, withTZ bool) string {
+	if withTZ {
+		return t.Format(time.RFC3339)
+	}
+	return t.Format("2006-01-02T15:04:05")
+}
+
+func TimeStrToStr(s string, withTZ bool) string {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t, err = time.Parse("20060102T150405", s)
+		if err != nil {
+			return ""
+		}
+	}
+	return TimeToStr(t, withTZ)
+}
+
+func TimePToStr(t *time.Time, withTZ bool) string {
+	if t == nil {
+		return ""
+	}
+	return TimeToStr(*t, withTZ)
+}
