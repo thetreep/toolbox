@@ -15,6 +15,7 @@ func (c autonomous) Err() error                        { return nil }
 func (c autonomous) Value(key interface{}) interface{} { return c.ctx.Value(key) }
 
 // Autonomous returns a context that is never canceled.
+// @Deprecated: use context.WithoutCancel instead
 func Autonomous(ctx context.Context) context.Context {
 	return autonomous{ctx: ctx}
 }
