@@ -1,4 +1,4 @@
-package slogging
+package logger
 
 import (
 	"errors"

@@ -1,5 +1,5 @@
-// Package slogging provides some useful helpers over the standard `log/slog` package for structured logging.
-package slogging
+// Package logger provides some helpers over the standard `log/slog` package for structured logging.
+package logger
 
 import (
 	"context"
