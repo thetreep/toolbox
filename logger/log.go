@@ -10,6 +10,7 @@ import (
 
 func Error(ctx context.Context, err error, attrs ...slog.Attr) {
 	attrs = append(attrs, slog.Any("stacktrace", errtrace.FormatString(err)))
+	attrs = append(attrs, getAttributesFromErr(err)...)
 
 	logAttrs(ctx, getErrorLevel(err), err.Error(), attrs...)
 }
@@ -33,5 +34,6 @@ func Warn(ctx context.Context, msg string, attrs ...slog.Attr) {
 func logAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
 	logger := GetLoggerFromContext(ctx)
 	attrs = append(attrs, getAttributesFromContext(ctx)...)
+
 	logger.LogAttrs(ctx, level, msg, attrs...)
 }
