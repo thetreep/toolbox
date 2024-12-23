@@ -1,6 +1,8 @@
 module github.com/thetreep/toolbox
 
-go 1.18
+go 1.21
+
+toolchain go1.23.0
 
 require (
 	braces.dev/errtrace v0.3.0
@@ -8,6 +10,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.21.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator v0.45.0
 	github.com/cockroachdb/errors v1.11.1
+	github.com/jussi-kalliokoski/slogdriver v1.0.1
 	github.com/kr/pretty v0.3.1
 	github.com/nyaruka/phonenumbers v1.3.6
 	github.com/pkg/errors v0.9.1
@@ -40,6 +43,7 @@ require (
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.5 // indirect
+	github.com/jussi-kalliokoski/goldjson v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
