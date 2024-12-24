@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"database/sql"
 	"strconv"
 	"strings"
 	"time"
@@ -38,37 +39,37 @@ func PointerTo[T any](v T) *T {
 	return &v
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func BoolP(v bool) *bool {
 	return &v
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func Float64P(v float64) *float64 {
 	return &v
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func FloatP(v float32) *float32 {
 	return &v
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func Int64P(v int64) *int64 {
 	return &v
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func IntP(v int) *int {
 	return &v
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func StrP(s string) *string {
 	return &s
 }
 
-// Deprecated: use PointerTo instead
+// Deprecated: use PointerTo instead.
 func TimeP(t time.Time) *time.Time {
 	return &t
 }
@@ -77,9 +78,11 @@ func EqualInt64P(a, b *int64) bool {
 	if a == b {
 		return true
 	}
+
 	if a == nil || b == nil {
 		return false
 	}
+
 	return *a == *b
 }
 
@@ -91,4 +94,31 @@ func Float32ToString(f float32) string {
 // Float64ToString converts a float64 to a string.
 func Float64ToString(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+func SqlNullableStringToPtrString(source sql.NullString) *string {
+	var result *string
+	if source.Valid {
+		result = &source.String
+	}
+
+	return result
+}
+
+func SqlNullableInt16ToPrtInt16(source sql.NullInt16) *int16 {
+	var result *int16
+	if source.Valid {
+		result = &source.Int16
+	}
+
+	return result
+}
+
+func SqlNullableFloat64ToPtrFloat64(source sql.NullFloat64) *float64 {
+	var result *float64
+	if source.Valid {
+		result = &source.Float64
+	}
+
+	return result
 }
