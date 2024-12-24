@@ -51,7 +51,6 @@ func TranslateWithPlural(
 			PluralCount:  count,
 		},
 	)
-
 	if err != nil {
 		logger.Error(
 			ctx,
@@ -67,7 +66,7 @@ func TranslateWithPlural(
 	return localizedMessage
 }
 
-// for testing purposes
+// for testing purposes.
 const (
 	helloWorld = "helloWorld"
 	helloYou   = "helloYou"
