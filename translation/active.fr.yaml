@@ -1,0 +1,6 @@
+helloWorld:
+    hash: sha1-d3486ae9136e7856bc42212385ea797094475802
+    other: Salut le monde !
+helloYou:
+    hash: sha1-c9ee926b2250a1f7207c04c2c9086bbfb68d9be0
+    other: Bonjour {{.}}!
