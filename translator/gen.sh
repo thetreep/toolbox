@@ -50,7 +50,7 @@ translate () {
 # Function to display usage information
 usage() {
     echo "Usage: $0 <extra languages...> <path>"
-    echo "Example: $0 fr en es /path/to/directory"
+    echo "Example: $0 fr en es /path/to/directory/"
     echo "Extra languages: fr, es, ect..."
     exit 1
 }
@@ -71,6 +71,11 @@ validate_path() {
     # Check if path is readable
     if [ ! -r "$path" ]; then
         echo "Error: Directory '$path' is not readable"
+        usage
+    fi
+    # Check if path end with /
+    if [[ "${path: -1}" != "/" ]]; then
+        echo "Error: Directory '$path' argument doest end with /"
         usage
     fi
 
