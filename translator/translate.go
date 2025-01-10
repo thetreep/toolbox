@@ -8,19 +8,22 @@ import (
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/thetreep/toolbox/logger"
-	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
 )
 
-//go:generate ./gen.sh
-//go:embed *.yaml
-var bundlesFS embed.FS
+// //go:generate ./gen.sh
+// //go:embed *.yaml
+// var bundlesFS embed.FS
 
-//nolint:gochecknoglobals // we don't need to mock translations, we can use a global
-var bundle = i18n.NewBundle(language.English)
+// //nolint:gochecknoglobals // we don't need to mock translations, we can use a global
+// var bundle = i18n.NewBundle(language.English)
 
-//nolint:gochecknoinits // we don't need to mock translations, we can init a global
-func init() {
+type TranslationService struct {
+	bundlesFS embed.FS
+	bundle    *i18n.Bundle
+}
+
+func New(bundlesFS embed.FS, bundle *i18n.Bundle) TranslationService {
 	bundle.RegisterUnmarshalFunc("yaml", yaml.Unmarshal)
 
 	_, err := bundle.LoadMessageFileFS(bundlesFS, "active.en.yaml")
@@ -32,17 +35,22 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
+	return TranslationService{
+		bundlesFS: bundlesFS,
+		bundle:    bundle,
+	}
 }
 
-func Translate(ctx context.Context, messageID string, args any) string {
-	return TranslateWithPlural(ctx, messageID, nil, args)
+func (svc TranslationService) Translate(ctx context.Context, messageID string, args any) string {
+	return svc.TranslateWithPlural(ctx, messageID, nil, args)
 }
 
-func TranslateWithPlural(
+func (svc TranslationService) TranslateWithPlural(
 	ctx context.Context, messageID string, count interface{}, args any,
 ) string {
 	langs := languagesFromContext(ctx)
-	localizer := i18n.NewLocalizer(bundle, langs...)
+	localizer := i18n.NewLocalizer(svc.bundle, langs...)
 
 	localizedMessage, err := localizer.Localize(
 		&i18n.LocalizeConfig{
@@ -65,20 +73,3 @@ func TranslateWithPlural(
 
 	return localizedMessage
 }
-
-// for testing purposes.
-const (
-	helloWorld = "helloWorld"
-	helloYou   = "helloYou"
-)
-
-var (
-	_ = &i18n.Message{
-		ID:    helloWorld,
-		Other: "Hello world!",
-	}
-	_ = &i18n.Message{
-		ID:    helloYou,
-		Other: "Hello {{.}}!",
-	}
-)
