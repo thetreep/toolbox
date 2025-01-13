@@ -4,3 +4,6 @@ helloWorld:
 helloYou:
     hash: sha1-c9ee926b2250a1f7207c04c2c9086bbfb68d9be0
     other: Bonjour {{.}}!
+surroundedByFriends:
+    hash: sha1-eb6b8ad3d8b687bad425c01c011eddaae00b86f9
+    other: '{{if eq .Gender "female"}}entouré d''amie{{else if eq .Gender "male"}}entouré d''ami{{else}}entouré d''ami.e{{end}}'

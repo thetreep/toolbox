@@ -15,7 +15,6 @@ import (
 var bundlesFS embed.FS
 
 func TestPreferredLanguageFromContext(t *testing.T) {
-
 	svc := translator.New(bundlesFS, i18n.NewBundle(language.English))
 
 	tests := []struct {
@@ -34,7 +33,7 @@ func TestPreferredLanguageFromContext(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.header, func(t *testing.T) {
-				ctx := svc.ContextWithLanguages(context.Background(), tt.header)
+				ctx := translator.ContextWithLanguages(context.Background(), tt.header)
 				require.Equal(t, tt.want.String(), svc.PreferredLanguageFromContext(ctx).String())
 			},
 		)

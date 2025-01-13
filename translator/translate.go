@@ -3,20 +3,10 @@ package translator
 import (
 	"context"
 	"embed"
-	"fmt"
-	"log/slog"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"github.com/thetreep/toolbox/logger"
 	"gopkg.in/yaml.v3"
 )
-
-// //go:generate ./gen.sh
-// //go:embed *.yaml
-// var bundlesFS embed.FS
-
-// //nolint:gochecknoglobals // we don't need to mock translations, we can use a global
-// var bundle = i18n.NewBundle(language.English)
 
 type TranslationService struct {
 	bundlesFS embed.FS
@@ -42,34 +32,25 @@ func New(bundlesFS embed.FS, bundle *i18n.Bundle) TranslationService {
 	}
 }
 
-func (svc TranslationService) Translate(ctx context.Context, messageID string, args any) string {
+func (svc TranslationService) Translate(
+	ctx context.Context,
+	messageID string,
+	args any,
+) (string, error) {
 	return svc.TranslateWithPlural(ctx, messageID, nil, args)
 }
 
 func (svc TranslationService) TranslateWithPlural(
 	ctx context.Context, messageID string, count interface{}, args any,
-) string {
+) (string, error) {
 	langs := languagesFromContext(ctx)
 	localizer := i18n.NewLocalizer(svc.bundle, langs...)
 
-	localizedMessage, err := localizer.Localize(
+	return localizer.Localize(
 		&i18n.LocalizeConfig{
 			MessageID:    messageID,
 			TemplateData: args,
 			PluralCount:  count,
 		},
 	)
-	if err != nil {
-		logger.Error(
-			ctx,
-			fmt.Errorf("translation error: %w", err),
-			slog.Any("messageID", messageID),
-			slog.Any("pluralCount", count),
-			slog.Any("args", args),
-		)
-
-		return fmt.Sprintf("translation_error(%s)", messageID)
-	}
-
-	return localizedMessage
 }

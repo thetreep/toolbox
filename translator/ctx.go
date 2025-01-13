@@ -7,7 +7,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-func (svc TranslationService) ContextWithLanguages(ctx context.Context, languages ...string) context.Context {
+func ContextWithLanguages(ctx context.Context, languages ...string) context.Context {
 	return context.WithValue(ctx, languagesCtxKey, languages)
 }
 
