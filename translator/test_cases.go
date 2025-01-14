@@ -2,8 +2,6 @@ package translator
 
 import "github.com/nicksnyder/go-i18n/v2/i18n"
 
-//go:generate ./gen.sh fr ./
-
 // for testing purposes.
 const (
 	HelloWorld          = "helloWorld"
