@@ -13,23 +13,23 @@ type TranslationService struct {
 	bundle    *i18n.Bundle
 }
 
-func New(bundlesFS embed.FS, bundle *i18n.Bundle) TranslationService {
+func New(bundlesFS embed.FS, bundle *i18n.Bundle) (*TranslationService, error) {
 	bundle.RegisterUnmarshalFunc("yaml", yaml.Unmarshal)
 
 	_, err := bundle.LoadMessageFileFS(bundlesFS, "active.en.yaml")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	_, err = bundle.LoadMessageFileFS(bundlesFS, "active.fr.yaml")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return TranslationService{
+	return &TranslationService{
 		bundlesFS: bundlesFS,
 		bundle:    bundle,
-	}
+	}, nil
 }
 
 func (svc TranslationService) Translate(

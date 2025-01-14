@@ -15,7 +15,7 @@ import (
 var bundlesFS embed.FS
 
 func TestPreferredLanguageFromContext(t *testing.T) {
-	svc := translator.New(bundlesFS, i18n.NewBundle(language.English))
+	svc, _ := translator.New(bundlesFS, i18n.NewBundle(language.English))
 
 	tests := []struct {
 		header string

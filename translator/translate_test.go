@@ -12,7 +12,7 @@ import (
 )
 
 func TestTranslate(t *testing.T) {
-	svc := translator.New(bundlesFS, i18n.NewBundle(language.English))
+	svc, _ := translator.New(bundlesFS, i18n.NewBundle(language.English))
 
 	tests := []struct {
 		name      string
