@@ -36,3 +36,7 @@ then wait 1 min and go to `http://localhost:6060/pkg/github.com?thetreep/toolbox
 git config --local core.hooksPath .git-hooks/
 GO111MODULE=on go get mvdan.cc/gofumpt
 ```
+
+## Translator
+
+You can this the documentation in [the readme.md](translator/README.md) `translator/README.md`
