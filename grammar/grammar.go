@@ -11,8 +11,9 @@ import (
 )
 
 var (
-	reg            = regexp.MustCompile("[^a-zA-Z0-9]+")
-	phoneSanitizer = strings.NewReplacer(" ", "", ".", "", "_", "", "(", "", ")", "", "-", "")
+	reg                  = regexp.MustCompile("[^a-zA-Z0-9]+")
+	phoneSanitizer       = strings.NewReplacer(" ", "", ".", "", "_", "", "(", "", ")", "", "-", "")
+	phoneSanitizerStrict = strings.NewReplacer(" ", "", ".", "", "_", "", "(", "", ")", "", "-", "", "+", "")
 )
 
 func Normalizer() transform.Transformer {
@@ -40,6 +41,11 @@ func JustCapitalize(s string) string {
 // SanitizePhone removes unexpected character of a phone string.
 func SanitizePhone(phone string) string {
 	return strings.TrimSpace(phoneSanitizer.Replace(phone))
+}
+
+// SanitizePhoneStrict removes all special characters of a phone string, including the `+`.
+func SanitizePhoneStrict(phone string) string {
+	return strings.TrimSpace(phoneSanitizerStrict.Replace(phone))
 }
 
 // Normalize normalizes a string by replacing special letter by its normalized version (e.g. : `é` -> `e`).
