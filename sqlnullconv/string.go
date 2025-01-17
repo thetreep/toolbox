@@ -1,4 +1,4 @@
-package nullconv
+package sqlnullconv
 
 import (
 	"database/sql"
