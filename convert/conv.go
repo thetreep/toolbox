@@ -96,7 +96,7 @@ func Float64ToString(f float64) string {
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 
-func SqlNullableStringToPtrString(source sql.NullString) *string {
+func ToPtrString(source sql.NullString) *string {
 	var result *string
 	if source.Valid {
 		result = &source.String
@@ -105,7 +105,7 @@ func SqlNullableStringToPtrString(source sql.NullString) *string {
 	return result
 }
 
-func SqlNullableInt16ToPrtInt16(source sql.NullInt16) *int16 {
+func ToPrtInt16(source sql.NullInt16) *int16 {
 	var result *int16
 	if source.Valid {
 		result = &source.Int16
@@ -114,11 +114,33 @@ func SqlNullableInt16ToPrtInt16(source sql.NullInt16) *int16 {
 	return result
 }
 
-func SqlNullableFloat64ToPtrFloat64(source sql.NullFloat64) *float64 {
+func ToPtrFloat64(source sql.NullFloat64) *float64 {
 	var result *float64
 	if source.Valid {
 		result = &source.Float64
 	}
 
 	return result
+}
+
+func ToSQLNullString(value *string) sql.NullString {
+	if value == nil {
+		return sql.NullString{Valid: false}
+	}
+
+	return sql.NullString{
+		String: *value,
+		Valid:  true,
+	}
+}
+
+func ToSQLNullInt16(value *int16) sql.NullInt16 {
+	if value == nil {
+		return sql.NullInt16{Valid: false}
+	}
+
+	return sql.NullInt16{
+		Int16: *value,
+		Valid: true,
+	}
 }
