@@ -3,6 +3,7 @@ package streamwork
 import (
 	"context"
 	"fmt"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -33,10 +34,16 @@ func Example() {
 				),
 			),
 		),
-		WorkerFunc(
-			// define a worker from a func which transforms its input into some output with no error
-			func(ctx context.Context, v int) string {
-				return strconv.Itoa(v * 2)
+		WorkerSeq(
+			// define a worker from a func which transforms an iter.Seq into another one
+			func(ctx context.Context, vs iter.Seq[int]) iter.Seq[string] {
+				return func(yield func(string) bool) {
+					for v := range vs {
+						if !yield(strconv.Itoa(v * 2)) {
+							return
+						}
+					}
+				}
 			},
 		),
 	)

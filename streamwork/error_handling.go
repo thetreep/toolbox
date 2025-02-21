@@ -28,10 +28,17 @@ type errCollector struct {
 }
 
 func (c *errCollector) Handle(_ context.Context, err error) bool {
+	if errors.Is(err, ErrNoValue) {
+		return true
+	}
+	mustContinue := false // fail fast by default
+	if errors.Is(err, ErrNotFatal) {
+		mustContinue = true
+	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.errs = append(c.errs, err)
-	return false // fail fast by default
+	return mustContinue
 }
 
 func (c *errCollector) Err() error {
@@ -48,3 +55,43 @@ func (c *errCollector) Err() error {
 }
 
 type ErrGetter func() error
+
+func WrapErrNotFatal(err error) error {
+	if err == nil {
+		return nil
+	}
+	return errNotFatal{err}
+}
+
+func WrapErrNotFatal2[T any](v T, err error) (T, error) {
+	if err == nil {
+		return v, nil
+	}
+	return v, errNotFatal{err}
+}
+
+type constantError string
+
+func (e constantError) Error() string {
+	return string(e)
+}
+
+const ErrNotFatal = constantError("not fatal for streamwork")
+
+type errNotFatal struct {
+	err error
+}
+
+func (e errNotFatal) Is(err error) bool {
+	return err == ErrNotFatal
+}
+
+func (e errNotFatal) Error() string {
+	return e.err.Error()
+}
+
+func (e errNotFatal) Unwrap() error {
+	return e.err
+}
+
+const ErrNoValue = constantError("no value to stream, but not an error")
