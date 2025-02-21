@@ -14,7 +14,7 @@ func AlwaysContinue[TIN any, TOUT any](w Worker[TIN, TOUT]) Worker[TIN, TOUT] {
 	return func(ctx context.Context, source <-chan TIN, cfg streamConfig) <-chan TOUT {
 		baseErrHandler := cfg.errHandler
 		cfg.errHandler = func(ctx context.Context, err error) bool {
-			_ = baseErrHandler(ctx, err) // whatever the original errHandler says, we continue
+			_ = baseErrHandler(ctx, WrapErrNotFatal(err)) // whatever the original errHandler says, we continue
 			return true
 		}
 		return w(ctx, source, cfg)
@@ -95,3 +95,29 @@ func (e errNotFatal) Unwrap() error {
 }
 
 const ErrNoValue = constantError("no value to stream, but not an error")
+
+func ExtractNonFatalErrs(err error) ([]error, error) {
+	joinedErr, isJoined := err.(interface{ Unwrap() []error })
+	if isJoined {
+		var nonFatalErrs []error
+		var fatalErr error
+		for _, e := range joinedErr.Unwrap() {
+			nf, f := ExtractNonFatalErrs(e)
+			nonFatalErrs = append(nonFatalErrs, nf...)
+			if f != nil {
+				fatalErr = f
+			}
+		}
+		return nonFatalErrs, fatalErr
+	} else {
+		wrappedErr, isWrapped := err.(interface{ Unwrap() error })
+		if !isWrapped {
+			if errors.Is(err, ErrNotFatal) {
+				return []error{err}, nil
+			} else {
+				return nil, err
+			}
+		}
+		return ExtractNonFatalErrs(wrappedErr.Unwrap())
+	}
+}
