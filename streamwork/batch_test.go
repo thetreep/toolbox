@@ -10,6 +10,7 @@ import (
 )
 
 func TestBatch(t *testing.T) {
+	runtime.GOMAXPROCS(2)
 	ctx := context.Background()
 
 	output, err := Stream2(ctx, ReadSlice([]int{1, 2, 3, 4, 5}), Batch[int](2))
