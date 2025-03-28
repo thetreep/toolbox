@@ -8,7 +8,7 @@ import (
 // Parallelize takes a worker and spawns `instancesCount` instances of it, distributing the inputs between all and combining the outputs.
 func Parallelize[TIN any, TOUT any](instancesCount int, worker Worker[TIN, TOUT]) Worker[TIN, TOUT] {
 	return func(ctx context.Context, source <-chan TIN, cfg streamConfig) <-chan TOUT {
-		chanOut := make(chan TOUT, instancesCount)
+		chanOut := make(chan TOUT, cfg.bufferSize)
 		ctx, cfg.errHandler = wrapErrHandleWithCancel(ctx, cfg.errHandler)
 		go func() {
 			defer close(chanOut)
