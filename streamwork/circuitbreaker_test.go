@@ -2,12 +2,14 @@ package streamwork
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestCircuitBreaker(t *testing.T) {
+	runtime.GOMAXPROCS(2)
 	ctx := context.Background()
 
 	cb := NewCircuitBreaker()
@@ -19,6 +21,7 @@ func TestCircuitBreaker(t *testing.T) {
 					if !yield(i) {
 						return
 					}
+					runtime.Gosched() // allows the goroutines to receive all values already sent
 					if i >= 5 {
 						cb.Cut() // cutting the circuit breaker should close the stream and make the next yield return false
 					}
