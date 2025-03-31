@@ -39,6 +39,20 @@ func (svc TranslationService) PreferredLanguageFromContext(
 	return lang
 }
 
+// LangFromCtx returns the first valid language found in the context.
+// Defaults to EN.
+func LangFromCtx(ctx context.Context) language.Tag {
+	langs := languagesFromContext(ctx)
+	for _, langStr := range langs {
+		tag, err := language.Parse(langStr)
+		if err == nil {
+			return tag
+		}
+	}
+
+	return language.English
+}
+
 type languagesCtxKeyType string
 
 const languagesCtxKey languagesCtxKeyType = "languagesCtxKey"
