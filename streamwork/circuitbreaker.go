@@ -116,12 +116,13 @@ func CircuitBreakerWorker[T any](cb CircuitBreaker) Worker[T, T] {
 						case <-cb.resumeChan():
 						}
 					}
+				vLoop:
 					for {
 						select {
 						case <-ctx.Done():
 							return
 						case chanOut <- v:
-							break
+							break vLoop
 						case <-cb.pauseChan():
 							select {
 							case <-ctx.Done():
