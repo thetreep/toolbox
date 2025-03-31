@@ -3,11 +3,14 @@ package logger
 import (
 	"context"
 	"log/slog"
+	"maps"
 )
 
 func CtxWithLogAttributes(ctx context.Context, attrs ...slog.Attr) context.Context {
-	attributes, _ := ctx.Value(attributesCtxKey{}).(map[string]slog.Attr)
-	if attributes == nil {
+	var attributes map[string]slog.Attr
+	if existingAttributes, _ := ctx.Value(attributesCtxKey{}).(map[string]slog.Attr); existingAttributes != nil {
+		attributes = maps.Clone(existingAttributes)
+	} else {
 		attributes = make(map[string]slog.Attr)
 	}
 
