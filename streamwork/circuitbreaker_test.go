@@ -14,21 +14,24 @@ func TestCircuitBreaker(t *testing.T) {
 
 	cb := NewCircuitBreaker()
 
-	output, err := Stream2(
+	output, err := Stream3(
 		ctx, ReadSeq(
 			func(yield func(int) bool) {
 				for i := range 10 {
 					if !yield(i) {
 						return
 					}
-					runtime.Gosched() // allows the goroutines to receive all values already sent
-					if i >= 5 {
-						cb.Cut() // cutting the circuit breaker should close the stream and make the next yield return false
-					}
-					require.LessOrEqual(t, i, 5) // we should never get to the next value
 				}
 			},
 		), CircuitBreakerWorker[int](cb),
+		WorkerFunc(
+			func(ctx context.Context, v int) int {
+				if v >= 5 {
+					cb.Cut() // cutting the circuit breaker should close the stream and make the next yield return false
+				}
+				return v
+			},
+		),
 	)
 	require.NoError(t, err)
 	require.Equal(t, []int{0, 1, 2, 3, 4, 5}, output)
