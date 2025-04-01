@@ -30,11 +30,17 @@ func Parallelize[TIN any, TOUT any](instancesCount int, worker Worker[TIN, TOUT]
 
 func pipeChannels[T any](ctx context.Context, src <-chan T, dest chan T) {
 	for {
+		if ctx.Err() != nil {
+			return
+		}
 		select {
 		case <-ctx.Done():
 			return
 		case v, ok := <-src:
 			if !ok {
+				return
+			}
+			if ctx.Err() != nil {
 				return
 			}
 			select {

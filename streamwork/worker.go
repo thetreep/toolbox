@@ -15,11 +15,17 @@ func WorkerFunc[TIN any, TOUT any](f func(ctx context.Context, v TIN) TOUT) Work
 		go func() {
 			defer close(chanOut)
 			for {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
 				case v, ok := <-source:
 					if !ok {
+						return
+					}
+					if ctx.Err() != nil {
 						return
 					}
 					select {
@@ -43,6 +49,9 @@ func WorkerSeq[TIN any, TOUT any](f func(ctx context.Context, v iter.Seq[TIN]) i
 		seqOut := f(
 			ctx, func(yield func(TIN) bool) {
 				for {
+					if ctx.Err() != nil {
+						return
+					}
 					select {
 					case <-ctx.Done():
 						return
@@ -60,6 +69,9 @@ func WorkerSeq[TIN any, TOUT any](f func(ctx context.Context, v iter.Seq[TIN]) i
 		go func() {
 			defer close(chanOut)
 			for vOut := range seqOut {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -80,6 +92,9 @@ func WorkerSeqErr[TIN any, TOUT any](f func(ctx context.Context, v iter.Seq[TIN]
 		seqOut := f(
 			ctx, func(yield func(TIN) bool) {
 				for {
+					if ctx.Err() != nil {
+						return
+					}
 					select {
 					case <-ctx.Done():
 						return
@@ -103,6 +118,9 @@ func WorkerSeqErr[TIN any, TOUT any](f func(ctx context.Context, v iter.Seq[TIN]
 					}
 					continue
 				}
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -123,6 +141,9 @@ func WorkerFuncErr[TIN any, TOUT any](f func(ctx context.Context, v TIN) (TOUT, 
 		go func() {
 			defer close(chanOut)
 			for {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -136,6 +157,9 @@ func WorkerFuncErr[TIN any, TOUT any](f func(ctx context.Context, v TIN) (TOUT, 
 							return
 						}
 						continue
+					}
+					if ctx.Err() != nil {
+						return
 					}
 					select {
 					case <-ctx.Done():

@@ -11,6 +11,9 @@ func Flatten[T any]() Worker[[]T, T] {
 		go func() {
 			defer close(chanOut)
 			for {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -19,6 +22,9 @@ func Flatten[T any]() Worker[[]T, T] {
 						return
 					}
 					for _, v := range batch {
+						if ctx.Err() != nil {
+							return
+						}
 						select {
 						case <-ctx.Done():
 							return

@@ -102,6 +102,9 @@ func CircuitBreakerWorker[T any](cb CircuitBreaker) Worker[T, T] {
 		go func() {
 			defer close(chanOut)
 			for {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -110,6 +113,9 @@ func CircuitBreakerWorker[T any](cb CircuitBreaker) Worker[T, T] {
 						return
 					}
 					if cb.IsPaused() {
+						if ctx.Err() != nil {
+							return
+						}
 						select {
 						case <-ctx.Done():
 							return
@@ -118,12 +124,18 @@ func CircuitBreakerWorker[T any](cb CircuitBreaker) Worker[T, T] {
 					}
 				vLoop:
 					for {
+						if ctx.Err() != nil {
+							return
+						}
 						select {
 						case <-ctx.Done():
 							return
 						case chanOut <- v:
 							break vLoop
 						case <-cb.pauseChan():
+							if ctx.Err() != nil {
+								return
+							}
 							select {
 							case <-ctx.Done():
 								return

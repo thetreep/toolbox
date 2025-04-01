@@ -14,6 +14,9 @@ func ReadSlice[T any](s []T) Source[T] {
 		go func() {
 			defer close(c)
 			for _, v := range s {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -48,6 +51,9 @@ func ReadSeq[T any](s iter.Seq[T], options ...StreamOption) Source[T] {
 		go func() {
 			defer close(c)
 			for v := range s {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -75,6 +81,9 @@ func ReadSeqErr[T any](s iter.Seq2[T, error], options ...StreamOption) Source[T]
 						return
 					}
 					continue
+				}
+				if ctx.Err() != nil {
+					return
 				}
 				select {
 				case <-ctx.Done():

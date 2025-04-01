@@ -9,6 +9,9 @@ func Filter[TIN any](f func(ctx context.Context, v TIN) bool) Worker[TIN, TIN] {
 		go func() {
 			defer close(chanOut)
 			for {
+				if ctx.Err() != nil {
+					return
+				}
 				select {
 				case <-ctx.Done():
 					return
@@ -18,6 +21,9 @@ func Filter[TIN any](f func(ctx context.Context, v TIN) bool) Worker[TIN, TIN] {
 					}
 					if !f(ctx, v) {
 						continue
+					}
+					if ctx.Err() != nil {
+						return
 					}
 					select {
 					case <-ctx.Done():
