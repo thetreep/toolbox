@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/jussi-kalliokoski/slogdriver"
+	"github.com/lmittmann/tint"
 )
 
 // attribute blacklist is a "constant" that is put here for better readability
@@ -48,13 +50,17 @@ func getBaseHandler(ctx context.Context, format LogFormat, level string) slog.Ha
 
 	switch format {
 	case Text:
-		options.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-			if slices.Contains(textAttributeBlacklist, a.Key) {
-				return slog.String(a.Key, "#hidden#")
-			}
-			return a
-		}
-		handler = slog.NewTextHandler(writer, options)
+		handler = tint.NewHandler(writer, &tint.Options{
+			AddSource: options.AddSource,
+			Level:     options.Level,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if slices.Contains(textAttributeBlacklist, a.Key) {
+					return slog.String(a.Key, "#hidden#")
+				}
+				return a
+			},
+			TimeFormat: time.TimeOnly,
+		})
 	case Gcp:
 		projectID, err := getProjectID()
 		if err != nil {
