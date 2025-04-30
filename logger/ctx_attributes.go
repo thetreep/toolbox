@@ -2,22 +2,40 @@ package logger
 
 import (
 	"context"
-	"slices"
+	"log/slog"
 )
 
 func CtxWithLogAttributes(ctx context.Context, attrs ...any) context.Context {
-	var attributes []any
-
-	if existingAttributes, _ := ctx.Value(
+	existingAttributes, _ := ctx.Value(
 		attrsCtxKey{},
-	).([]any); existingAttributes != nil {
-		attributes = slices.Clone(existingAttributes)
-	} else {
-		attributes = make([]any, 0)
+	).([]any)
+
+	logAttrs := make(map[string]slog.Attr, 0)
+	attributes := make([]any, 0, len(existingAttributes))
+
+	for _, attr := range existingAttributes {
+		if logAttr, ok := attr.(slog.Attr); ok {
+			logAttrs[logAttr.Key] = logAttr
+
+			continue
+		}
+
+		// save attributes that are not slog.Attr
+		attributes = append(attributes, attr)
 	}
 
 	for _, attr := range attrs {
+		if logAttr, ok := attr.(slog.Attr); ok {
+			logAttrs[logAttr.Key] = logAttr
+
+			continue
+		}
+
 		attributes = append(attributes, attr)
+	}
+
+	for _, v := range logAttrs {
+		attributes = append(attributes, v)
 	}
 
 	return context.WithValue(ctx, attrsCtxKey{}, attributes)

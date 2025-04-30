@@ -49,5 +49,4 @@ func TestCtxProxyHandler(t *testing.T) {
 	require.Len(t, handler.GetLogs(), 3)
 	proxyLogger.ErrorContext(ctx, "test")
 	require.Len(t, handler.GetLogs(), 4)
-
 }
