@@ -38,7 +38,7 @@ func TestCtxWithLogAttributes(t *testing.T) {
 	require.Len(t, handler.GetLogs(), 6)
 	require.Equal(t, 3, handler.GetLogs()[5].NumAttrs())
 
-	Debug(ctx3, "test", "toto", "tonton")
+	Debug(ctx3, "test", "toto", "tonton", "tata", "ok", slog.String("key", "value"))
 	require.Len(t, handler.GetLogs(), 7)
-	require.Equal(t, 2, handler.GetLogs()[6].NumAttrs())
+	require.Equal(t, 3, handler.GetLogs()[6].NumAttrs())
 }
