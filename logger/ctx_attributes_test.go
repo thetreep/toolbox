@@ -15,6 +15,7 @@ func TestCtxWithLogAttributes(t *testing.T) {
 	ctx := CtxWithLogger(context.Background(), logger)
 	ctx = CtxWithLogAttributes(ctx, slog.String("toto", "tutu"), slog.Int("?", 42))
 	ctx2 := CtxWithLogAttributes(ctx, slog.String("tata", "tonton"), slog.Int("?", 404))
+	ctx3 := CtxWithLogger(context.Background(), logger)
 
 	require.Empty(t, handler.GetLogs())
 	Debug(ctx, "test")
@@ -36,4 +37,8 @@ func TestCtxWithLogAttributes(t *testing.T) {
 	Debug(ctx2, "test")
 	require.Len(t, handler.GetLogs(), 6)
 	require.Equal(t, 3, handler.GetLogs()[5].NumAttrs())
+
+	Debug(ctx3, "test", "toto", "tonton", "tata", "ok", slog.String("key", "value"))
+	require.Len(t, handler.GetLogs(), 7)
+	require.Equal(t, 3, handler.GetLogs()[6].NumAttrs())
 }

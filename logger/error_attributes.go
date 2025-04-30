@@ -2,10 +2,9 @@ package logger
 
 import (
 	"errors"
-	"log/slog"
 )
 
-func ErrWithAttributes(err error, attrs ...slog.Attr) error {
+func ErrWithAttributes(err error, attrs ...any) error {
 	if err == nil {
 		return nil
 	}
@@ -16,10 +15,10 @@ func ErrWithAttributes(err error, attrs ...slog.Attr) error {
 	}
 }
 
-func getAttributesFromErr(err error) []slog.Attr {
+func getAttributesFromErr(err error) []any {
 	var (
-		attrs        []slog.Attr
-		errWithAttrs interface{ GetSlogAttributes() []slog.Attr }
+		attrs        []any
+		errWithAttrs interface{ GetSlogAttributes() []any }
 	)
 
 	if errors.As(err, &errWithAttrs) {
@@ -31,7 +30,7 @@ func getAttributesFromErr(err error) []slog.Attr {
 
 type errWithAttributes struct { //nolint:errname // .
 	wrapped error
-	attrs   []slog.Attr
+	attrs   []any
 }
 
 func (e errWithAttributes) Error() string {
@@ -42,6 +41,6 @@ func (e errWithAttributes) Unwrap() error {
 	return e.wrapped
 }
 
-func (e errWithAttributes) GetSlogAttributes() []slog.Attr {
+func (e errWithAttributes) GetSlogAttributes() []any {
 	return e.attrs
 }
