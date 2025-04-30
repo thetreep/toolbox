@@ -36,6 +36,7 @@ func (c CtxProxyHandler) getHandler(ctx context.Context) slog.Handler {
 	for _, group := range c.withGroups {
 		handler = handler.WithGroup(group)
 	}
+
 	return handler
 }
 
@@ -45,7 +46,8 @@ func (c CtxProxyHandler) Enabled(ctx context.Context, level slog.Level) bool {
 
 func (c CtxProxyHandler) Handle(ctx context.Context, record slog.Record) error {
 	ctx = storeProgramCounter(ctx, 1)
-	record.AddAttrs(getAttributesFromContext(ctx)...)
+	record.Add(getAttributesFromContext(ctx)...)
+
 	return errtrace.Wrap(c.getHandler(ctx).Handle(ctx, record))
 }
 
