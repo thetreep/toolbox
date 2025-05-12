@@ -141,3 +141,18 @@ func getProjectID() (string, error) {
 
 	return string(body), nil
 }
+
+type logLevelCtxKey struct{}
+
+func LogLevelFromCtx(ctx context.Context) *slog.Level {
+	level, ok := ctx.Value(logLevelCtxKey{}).(slog.Level)
+	if !ok {
+		return nil
+	}
+
+	return &level
+}
+
+func CtxWithLogLevel(ctx context.Context, level slog.Level) context.Context {
+	return context.WithValue(ctx, logLevelCtxKey{}, level)
+}
