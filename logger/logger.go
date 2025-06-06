@@ -43,7 +43,7 @@ func getBaseHandler(ctx context.Context, format LogFormat, level string) slog.Ha
 	options := &slog.HandlerOptions{
 		AddSource:   false,
 		ReplaceAttr: nil,
-		Level:       getLogLevel(ctx, level),
+		Level:       GetLogLevel(ctx, level),
 	}
 
 	const defaultLogFormat = "json"
@@ -57,6 +57,7 @@ func getBaseHandler(ctx context.Context, format LogFormat, level string) slog.Ha
 				if slices.Contains(textAttributeBlacklist, a.Key) {
 					return slog.String(a.Key, "#hidden#")
 				}
+
 				return a
 			},
 			TimeFormat: time.TimeOnly,
@@ -92,10 +93,11 @@ func getBaseHandler(ctx context.Context, format LogFormat, level string) slog.Ha
 	if handler == nil {
 		handler = slog.NewJSONHandler(writer, options)
 	}
+
 	return handler
 }
 
-func getLogLevel(ctx context.Context, level string) slog.Level {
+func GetLogLevel(ctx context.Context, level string) slog.Level {
 	const defaultLogLevel = slog.LevelInfo
 
 	var logLevel slog.Level
