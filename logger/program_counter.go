@@ -27,6 +27,7 @@ func storeProgramCounter(ctx context.Context, skipCount int) context.Context {
 
 func getProgramCounterFromContext(ctx context.Context) (uintptr, bool) {
 	pc, ok := ctx.Value(programCounterCtxKey{}).(uintptr)
+
 	return pc, ok
 }
 

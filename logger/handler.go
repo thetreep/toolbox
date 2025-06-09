@@ -11,7 +11,7 @@ type ctxLogHandler struct {
 	slog.Handler
 }
 
-func newCtxLogHandler(wrappedHandler slog.Handler) slog.Handler {
+func NewCtxLogHandler(wrappedHandler slog.Handler) slog.Handler {
 	return ctxLogHandler{Handler: wrappedHandler}
 }
 
