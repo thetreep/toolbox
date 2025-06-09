@@ -5,8 +5,8 @@ import (
 	"log/slog"
 )
 
-// ctxLogHandler does two things:
-// - it allows overriding the log level via the context.
+// ctxLogHandler implement slog.Handler,
+// it override Enabled method to get the log level from the context.
 type ctxLogHandler struct {
 	slog.Handler
 }
