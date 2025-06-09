@@ -31,7 +31,7 @@ const (
 )
 
 func Live(ctx context.Context, format LogFormat, level string) *slog.Logger {
-	handler := getBaseHandler(ctx, format, level)
+	handler := newCtxLogHandler(getBaseHandler(ctx, format, level))
 
 	return slog.New(handler)
 }
