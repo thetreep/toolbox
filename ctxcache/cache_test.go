@@ -88,7 +88,7 @@ func TestGetFromContextCache(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				ctx := tt.setupFunc(t.Context())
+				ctx := tt.setupFunc(context.Background())
 				result, err := GetFromContextCache(ctx, tt.cacheKey, tt.builder)
 
 				if tt.expectErr {
@@ -103,7 +103,7 @@ func TestGetFromContextCache(t *testing.T) {
 }
 
 func TestPutInContextCache(t *testing.T) {
-	ctx := ContextWithCache[int](t.Context())
+	ctx := ContextWithCache[int](context.Background())
 	PutInContextCache(ctx, "key1", 42)
 	result, err := GetFromContextCache(ctx, "key1", func() (int, error) { return -1, nil })
 	require.NoError(t, err)
