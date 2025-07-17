@@ -1,17 +1,21 @@
 package convert
 
 func Must[T any](value T, err error) T {
-	panicIfErr(err)
+	if err != nil {
+		panic(err)
+	}
 	return value
 }
 
-func PanicIfErrV[T any](v T, err error) T {
-	panicIfErr(err)
-	return v
+type test interface {
+	Fatalf(format string, args ...any)
 }
 
-func panicIfErr(err error) {
-	if err != nil {
-		panic(err)
+func MustForTest[T any](v T, err error) func(t test) T {
+	return func(t test) T {
+		if err != nil {
+			t.Fatalf("err: %+v", err)
+		}
+		return v
 	}
 }
