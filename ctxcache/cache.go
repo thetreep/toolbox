@@ -27,10 +27,14 @@ func (c *contextCache[T]) get(ctx context.Context, cacheKey string, builder func
 		c.lock.Lock()
 		defer c.lock.Unlock()
 		if cached, exists := c.data[cacheKey]; exists {
-			logger.Debug(ctx, "context cache hit")
+			if verboseLogsEnabled(ctx) {
+				logger.Debug(ctx, "context cache hit")
+			}
 			return cached
 		}
-		logger.Debug(ctx, "context cache miss")
+		if verboseLogsEnabled(ctx) {
+			logger.Debug(ctx, "context cache miss")
+		}
 		promise := sync.OnceValues(
 			func() (T, error) {
 				return errtrace.Wrap2(builder())
@@ -54,7 +58,9 @@ func (c *contextCache[T]) ctxWithAttributes(ctx context.Context, cacheKey string
 func ContextWithCache[T any](ctx context.Context) context.Context {
 	cache, hasCache := ctx.Value(contextCacheCtxKey[T]{}).(*contextCache[T])
 	if hasCache {
-		logger.Debug(cache.ctxWithAttributes(ctx, ""), "context cache already exists")
+		if verboseLogsEnabled(ctx) {
+			logger.Debug(cache.ctxWithAttributes(ctx, ""), "context cache already exists")
+		}
 		return ctx
 	}
 	cache = &contextCache[T]{
@@ -67,7 +73,9 @@ func ContextWithCache[T any](ctx context.Context) context.Context {
 func GetFromContextCache[T any](ctx context.Context, cacheKey string, builder func() (T, error)) (T, error) {
 	cache, hasCache := ctx.Value(contextCacheCtxKey[T]{}).(*contextCache[T])
 	if !hasCache {
-		logger.Debug(cache.ctxWithAttributes(ctx, ""), "context cache does not exists")
+		if verboseLogsEnabled(ctx) {
+			logger.Debug(cache.ctxWithAttributes(ctx, ""), "context cache does not exists")
+		}
 		return errtrace.Wrap2(builder())
 	}
 
@@ -80,13 +88,17 @@ func GetFromContextCache[T any](ctx context.Context, cacheKey string, builder fu
 func PutInContextCache[T any](ctx context.Context, cacheKey string, value T) {
 	cache, hasCache := ctx.Value(contextCacheCtxKey[T]{}).(*contextCache[T])
 	if !hasCache {
-		logger.Debug(cache.ctxWithAttributes(ctx, ""), "context cache does not exists")
+		if verboseLogsEnabled(ctx) {
+			logger.Debug(cache.ctxWithAttributes(ctx, ""), "context cache does not exists")
+		}
 		return
 	}
 	ctx = cache.ctxWithAttributes(ctx, cacheKey)
 	cache.lock.Lock()
 	defer cache.lock.Unlock()
-	logger.Debug(ctx, "context cache put")
+	if verboseLogsEnabled(ctx) {
+		logger.Debug(ctx, "context cache put")
+	}
 	cache.data[cacheKey] = func() (T, error) { //nolint:unparam // matches the cache signature
 		return value, nil
 	}
