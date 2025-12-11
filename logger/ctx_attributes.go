@@ -5,31 +5,49 @@ import (
 	"log/slog"
 )
 
-func CtxWithLogAttributes(ctx context.Context, attrs ...slog.Attr) context.Context {
-	attributes, _ := ctx.Value(attributesCtxKey{}).(map[string]slog.Attr)
-	if attributes == nil {
-		attributes = make(map[string]slog.Attr)
+func CtxWithLogAttributes(ctx context.Context, attrs ...any) context.Context {
+	existingAttributes, _ := ctx.Value(
+		attrsCtxKey{},
+	).([]any)
+
+	logAttrs := make(map[string]slog.Attr, 0)
+	attributes := make([]any, 0, len(existingAttributes))
+
+	for _, attr := range existingAttributes {
+		if logAttr, ok := attr.(slog.Attr); ok {
+			logAttrs[logAttr.Key] = logAttr
+
+			continue
+		}
+
+		// save attributes that are not slog.Attr
+		attributes = append(attributes, attr)
 	}
 
 	for _, attr := range attrs {
-		attributes[attr.Key] = attr
+		if logAttr, ok := attr.(slog.Attr); ok {
+			logAttrs[logAttr.Key] = logAttr
+
+			continue
+		}
+
+		attributes = append(attributes, attr)
 	}
 
-	return context.WithValue(ctx, attributesCtxKey{}, attributes)
+	for _, v := range logAttrs {
+		attributes = append(attributes, v)
+	}
+
+	return context.WithValue(ctx, attrsCtxKey{}, attributes)
 }
 
-type attributesCtxKey struct{}
+type attrsCtxKey struct{}
 
-func getAttributesFromContext(ctx context.Context) []slog.Attr {
-	attributes, _ := ctx.Value(attributesCtxKey{}).(map[string]slog.Attr)
+func getAttributesFromContext(ctx context.Context) []any {
+	attributes, _ := ctx.Value(attrsCtxKey{}).([]any)
 	if attributes == nil {
 		return nil
 	}
 
-	attributesSlice := make([]slog.Attr, 0, len(attributes))
-	for _, attr := range attributes {
-		attributesSlice = append(attributesSlice, attr)
-	}
-
-	return attributesSlice
+	return attributes
 }

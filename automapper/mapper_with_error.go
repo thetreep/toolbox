@@ -9,7 +9,12 @@ func (a MapFuncWithErr[T, U]) Map(v T) (U, error) {
 }
 
 func (a MapFuncWithErr[T, U]) MapEach(v []T) ([]U, error) {
-	values := make([]U, 0)
+	var values []U //nolint:prealloc // need to keep nil value
+
+	if a == nil || v == nil {
+		return values, nil
+	}
+
 	for _, value := range v {
 		to, err := a.Map(value)
 		if err != nil {
@@ -27,7 +32,12 @@ func (a MapFuncWithCtxErr[T, U]) Map(ctx context.Context, v T) (U, error) {
 }
 
 func (a MapFuncWithCtxErr[T, U]) MapEach(ctx context.Context, v []T) ([]U, error) {
-	values := make([]U, 0)
+	var values []U //nolint:prealloc // need to keep nil value
+
+	if a == nil || v == nil {
+		return values, nil
+	}
+
 	for _, value := range v {
 		to, err := a.Map(ctx, value)
 		if err != nil {
@@ -45,7 +55,12 @@ func (a MapFuncWithCtx[T, U]) Map(ctx context.Context, v T) U {
 }
 
 func (a MapFuncWithCtx[T, U]) MapEach(ctx context.Context, v []T) []U {
-	values := make([]U, 0)
+	var values []U //nolint:prealloc // need to keep nil value
+
+	if a == nil || v == nil {
+		return values
+	}
+
 	for _, value := range v {
 		values = append(values, a.Map(ctx, value))
 	}

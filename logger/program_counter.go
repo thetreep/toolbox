@@ -16,15 +16,18 @@ func storeProgramCounter(ctx context.Context, skipCount int) context.Context {
 		// we do not override previously stored value
 		return ctx
 	}
+
 	pc, _, _, ok := runtime.Caller(1 + skipCount) // +1 to skip this function too
 	if !ok {
 		return ctx
 	}
+
 	return context.WithValue(ctx, programCounterCtxKey{}, pc)
 }
 
 func getProgramCounterFromContext(ctx context.Context) (uintptr, bool) {
 	pc, ok := ctx.Value(programCounterCtxKey{}).(uintptr)
+
 	return pc, ok
 }
 

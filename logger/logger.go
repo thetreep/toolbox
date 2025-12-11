@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/jussi-kalliokoski/slogdriver"
+	"github.com/lmittmann/tint"
 )
 
 // attribute blacklist is a "constant" that is put here for better readability
@@ -29,7 +31,9 @@ const (
 )
 
 func Live(ctx context.Context, format LogFormat, level string) *slog.Logger {
-	handler := getBaseHandler(ctx, format, level)
+	handler := WrapHandlerToFixStackTrace(
+		NewCtxLogHandler(getBaseHandler(ctx, format, level)),
+	)
 
 	return slog.New(handler)
 }
@@ -41,20 +45,25 @@ func getBaseHandler(ctx context.Context, format LogFormat, level string) slog.Ha
 	options := &slog.HandlerOptions{
 		AddSource:   false,
 		ReplaceAttr: nil,
-		Level:       getLogLevel(ctx, level),
+		Level:       GetLogLevel(ctx, level),
 	}
 
 	const defaultLogFormat = "json"
 
 	switch format {
 	case Text:
-		options.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-			if slices.Contains(textAttributeBlacklist, a.Key) {
-				return slog.String(a.Key, "#hidden#")
-			}
-			return a
-		}
-		handler = slog.NewTextHandler(writer, options)
+		handler = tint.NewHandler(writer, &tint.Options{
+			AddSource: options.AddSource,
+			Level:     options.Level,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if slices.Contains(textAttributeBlacklist, a.Key) {
+					return slog.String(a.Key, "#hidden#")
+				}
+
+				return a
+			},
+			TimeFormat: time.TimeOnly,
+		})
 	case Gcp:
 		projectID, err := getProjectID()
 		if err != nil {
@@ -86,10 +95,11 @@ func getBaseHandler(ctx context.Context, format LogFormat, level string) slog.Ha
 	if handler == nil {
 		handler = slog.NewJSONHandler(writer, options)
 	}
+
 	return handler
 }
 
-func getLogLevel(ctx context.Context, level string) slog.Level {
+func GetLogLevel(ctx context.Context, level string) slog.Level {
 	const defaultLogLevel = slog.LevelInfo
 
 	var logLevel slog.Level
@@ -134,4 +144,19 @@ func getProjectID() (string, error) {
 	}
 
 	return string(body), nil
+}
+
+type logLevelCtxKey struct{}
+
+func LogLevelFromCtx(ctx context.Context) *slog.Level {
+	level, ok := ctx.Value(logLevelCtxKey{}).(slog.Level)
+	if !ok {
+		return nil
+	}
+
+	return &level
+}
+
+func CtxWithLogLevel(ctx context.Context, level slog.Level) context.Context {
+	return context.WithValue(ctx, logLevelCtxKey{}, level)
 }
