@@ -23,8 +23,12 @@ func NewClient() *http.Client {
 	}
 }
 
-func NewTransport() *http.Transport {
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+func NewTransport() http.RoundTripper {
+	t, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	transport := t.Clone()
 	transport.DialContext = (&net.Dialer{
 		Timeout: 20 * time.Second,
 	}).DialContext
