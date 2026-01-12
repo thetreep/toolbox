@@ -23,8 +23,8 @@ func ResolveSecretFromOP(ctx context.Context, value string, options ...resolveSe
 	token, err := getToken(options...)
 
 	// parse options
-	integrationName := "DefaultIntegrationName"
-	integrationVersion := "DefaultIntegrationVersion"
+	integrationName := "unkown"
+	integrationVersion := "unkown"
 	for _, option := range options {
 		switch {
 		case option.integrationName != "":
@@ -57,10 +57,12 @@ func WithOPToken(token string) resolveSecretFromOPOption {
 	return resolveSecretFromOPOption{token: token}
 }
 
+// WithIntegrationName sets the name of the integration e.g. consumer app name.
 func WithIntegrationName(name string) resolveSecretFromOPOption {
 	return resolveSecretFromOPOption{integrationName: name}
 }
 
+// WithIntegrationVersion sets the version of the integration e.g. consumer app version.
 func WithIntegrationVersion(version string) resolveSecretFromOPOption {
 	return resolveSecretFromOPOption{integrationVersion: version}
 }
