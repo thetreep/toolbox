@@ -13,13 +13,13 @@ type (
 	// PageResult represents a paginated collection of items.
 	PageResult[T any] struct {
 		Items      []T
-		NextCursor *Cursor
+		NextCursor Cursor
 		HasMore    bool
 	}
 
 	PageRequest struct {
 		Limit int
-		After *Cursor
+		After Cursor
 	}
 
 	SortDirection string
