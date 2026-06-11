@@ -32,7 +32,11 @@ type CtxProxyHandler struct {
 }
 
 func (c CtxProxyHandler) getHandler(ctx context.Context) slog.Handler {
-	handler := GetLoggerFromContext(ctx).Handler().WithAttrs(c.withAttrs)
+	handler := GetLoggerFromContext(ctx).Handler()
+	if len(c.withAttrs) > 0 {
+		handler = handler.WithAttrs(c.withAttrs)
+	}
+
 	for _, group := range c.withGroups {
 		handler = handler.WithGroup(group)
 	}
