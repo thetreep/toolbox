@@ -4,6 +4,7 @@ import (
   "strconv"
   "strings"
   "time"
+  "database/sql"
 )
 
 // ToFloat converts string to float64. It returns 0 if conversion is impossible.
@@ -134,5 +135,54 @@ func Float32ToString(f float32) string {
 
 // Float64ToString converts a float64 to a string.
 func Float64ToString(f float64) string {
-  return strconv.FormatFloat(f, 'f', -1, 64)
+	return strconv.FormatFloat(f, 'f', -1, 64)
+}
+
+func ToPtrString(source sql.NullString) *string {
+	var result *string
+	if source.Valid {
+		result = &source.String
+	}
+
+	return result
+}
+
+func ToPrtInt16(source sql.NullInt16) *int16 {
+	var result *int16
+	if source.Valid {
+		result = &source.Int16
+	}
+
+	return result
+}
+
+func ToPtrFloat64(source sql.NullFloat64) *float64 {
+	var result *float64
+	if source.Valid {
+		result = &source.Float64
+	}
+
+	return result
+}
+
+func ToSQLNullString(value *string) sql.NullString {
+	if value == nil {
+		return sql.NullString{Valid: false}
+	}
+
+	return sql.NullString{
+		String: *value,
+		Valid:  true,
+	}
+}
+
+func ToSQLNullInt16(value *int16) sql.NullInt16 {
+	if value == nil {
+		return sql.NullInt16{Valid: false}
+	}
+
+	return sql.NullInt16{
+		Int16: *value,
+		Valid: true,
+	}
 }
