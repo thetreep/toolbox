@@ -1,3 +1,4 @@
+// Package httpx provides HTTP clients and transports with tracing, redacted logging and body capture.
 package httpx
 
 import (
