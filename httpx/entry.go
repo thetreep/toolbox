@@ -71,7 +71,7 @@ func (t *LoggingTransport) emit(c *call, resp *http.Response, elapsed time.Durat
 	req := c.req
 	reqHeaders := t.redactHeaders(req.Header)
 	query := t.redactor.Query(req.URL.Query())
-	path := t.redactor.Text(req.URL.EscapedPath())
+	path := t.redactedPath(req.URL)
 	hostname := req.URL.Hostname()
 
 	reqSnap := c.reqBody.snapshot()

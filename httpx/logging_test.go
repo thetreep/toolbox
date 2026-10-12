@@ -300,6 +300,9 @@ func TestPathIsRedactedInSummaryAndSpan(t *testing.T) {
 
 	line := out.lines()[0]
 	assert.NotContains(t, line, "jean@example.com")
+
+	_, _ = doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/cards/4111%201111%201111%201111", "", "")
+	assert.NotContains(t, out.lines()[1], "4111")
 }
 
 func TestBodyReadErrorIsLogged(t *testing.T) {

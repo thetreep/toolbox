@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -115,7 +116,7 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		attribute.String("target-api", t.apiName),
 		attribute.String("http.request.method", req.Method),
 		attribute.String("server.address", req.URL.Hostname()),
-		attribute.String("url.path", t.redactor.Text(req.URL.EscapedPath())),
+		attribute.String("url.path", t.redactedPath(req.URL)),
 		attribute.String("request-id", childID),
 	)
 
@@ -207,7 +208,7 @@ func (c *call) finish(resp *http.Response, err error) {
 		switch {
 		case err != nil:
 			c.span.SetStatus(codes.Error, "HTTP call failed")
-			c.span.RecordError(err)
+			c.span.RecordError(errors.New(c.t.redactor.Text(err.Error())))
 		case resp != nil && resp.StatusCode >= http.StatusBadRequest:
 			c.span.SetStatus(codes.Error, http.StatusText(resp.StatusCode))
 		}
@@ -287,4 +288,14 @@ func mediaType(h http.Header) string {
 	mt, _, _ := strings.Cut(h.Get("Content-Type"), ";")
 
 	return strings.ToLower(strings.TrimSpace(mt))
+}
+
+// redactedPath scans the decoded path so percent-encoded values are caught, but keeps the original escaping when clean.
+func (t *LoggingTransport) redactedPath(u *url.URL) string {
+	redacted := t.redactor.Text(u.Path)
+	if redacted == u.Path {
+		return u.EscapedPath()
+	}
+
+	return (&url.URL{Path: redacted}).EscapedPath()
 }
