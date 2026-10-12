@@ -6,7 +6,7 @@ import (
 )
 
 // xml redacts matching elements, attributes and text nodes in one pass, copying everything else as-is.
-func (r *Redactor) xml(dst, src []byte) []byte {
+func (r *redactor) xml(dst, src []byte) []byte {
 	var (
 		depth int
 		// suppressBase is the depth of the redacted element whose content is being dropped.
@@ -84,7 +84,7 @@ func (r *Redactor) xml(dst, src []byte) []byte {
 }
 
 // xmlSpan copies a comment, CDATA section or processing instruction, running the detectors on its content.
-func (r *Redactor) xmlSpan(dst *[]byte, src []byte, i int, open, closing string, suppressed bool) int {
+func (r *redactor) xmlSpan(dst *[]byte, src []byte, i int, open, closing string, suppressed bool) int {
 	body := i + len(open)
 
 	end := bytes.Index(src[body:], []byte(closing))
@@ -103,7 +103,7 @@ func (r *Redactor) xmlSpan(dst *[]byte, src []byte, i int, open, closing string,
 }
 
 // xmlStartTag handles one start tag at src[i] and returns the next index and updated depth and suppressBase.
-func (r *Redactor) xmlStartTag(dst *[]byte, src []byte, i, depth, suppressBase int) (int, int, int) {
+func (r *redactor) xmlStartTag(dst *[]byte, src []byte, i, depth, suppressBase int) (int, int, int) {
 	suppressed := suppressBase >= 0
 	j := i + 1
 
@@ -168,7 +168,7 @@ tagEnd:
 }
 
 // xmlAttribute copies one name="value" attribute starting at src[j] and returns the index after it.
-func (r *Redactor) xmlAttribute(dst *[]byte, src []byte, j int, suppressed bool) int {
+func (r *redactor) xmlAttribute(dst *[]byte, src []byte, j int, suppressed bool) int {
 	nameStart := j
 	for j < len(src) && src[j] != '=' && !isXMLSpace(src[j]) && src[j] != '>' && src[j] != '/' {
 		j++
@@ -256,7 +256,7 @@ func (r *Redactor) xmlAttribute(dst *[]byte, src []byte, j int, suppressed bool)
 func isXMLSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\r' || c == '\n' }
 
 // form rewrites an application/x-www-form-urlencoded body.
-func (r *Redactor) form(dst, src []byte) []byte {
+func (r *redactor) form(dst, src []byte) []byte {
 	for len(src) > 0 {
 		var pair []byte
 
@@ -276,7 +276,7 @@ func (r *Redactor) form(dst, src []byte) []byte {
 	return dst
 }
 
-func (r *Redactor) formPair(dst, pair []byte) []byte {
+func (r *redactor) formPair(dst, pair []byte) []byte {
 	eq := bytes.IndexByte(pair, '=')
 	if eq < 0 {
 		out, _ := scan(dst, pair, false, true)

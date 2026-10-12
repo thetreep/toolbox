@@ -24,16 +24,16 @@ type Store interface {
 }
 
 // Option customizes New.
-type Option func(*Async)
+type Option func(*async)
 
 // WithWorkers sets the number of concurrent uploads (default 4).
-func WithWorkers(n int) Option { return func(a *Async) { a.workers = max(n, 1) } }
+func WithWorkers(n int) Option { return func(a *async) { a.workers = max(n, 1) } }
 
 // WithQueueSize sets how many uploads may wait for a worker (default 64).
-func WithQueueSize(n int) Option { return func(a *Async) { a.queueSize = max(n, 1) } }
+func WithQueueSize(n int) Option { return func(a *async) { a.queueSize = max(n, 1) } }
 
 // WithUploadTimeout bounds one upload (default 30s).
-func WithUploadTimeout(d time.Duration) Option { return func(a *Async) { a.timeout = d } }
+func WithUploadTimeout(d time.Duration) Option { return func(a *async) { a.timeout = d } }
 
 type job struct {
 	ctx  context.Context //nolint:containedctx // detached context carrying the caller's logger
@@ -41,8 +41,10 @@ type job struct {
 	body []byte
 }
 
-// Async implements httpx.BodySink: Put returns the reference at once and the upload happens in the background.
-type Async struct {
+// Async implements httpx.BodySink: Put returns at once and the upload runs in the background; the pointer alias leaves no usable zero value.
+type Async = *async
+
+type async struct {
 	store     Store
 	ref       func(key string) string
 	workers   int
@@ -56,8 +58,8 @@ type Async struct {
 }
 
 // New starts the workers; ref maps a key to the reference logged next to the preview.
-func New(store Store, ref func(key string) string, opts ...Option) *Async {
-	a := &Async{store: store, ref: ref, workers: 4, queueSize: 64, timeout: 30 * time.Second}
+func New(store Store, ref func(key string) string, opts ...Option) Async {
+	a := &async{store: store, ref: ref, workers: 4, queueSize: 64, timeout: 30 * time.Second}
 
 	for _, opt := range opts {
 		opt(a)
@@ -75,7 +77,7 @@ func New(store Store, ref func(key string) string, opts ...Option) *Async {
 }
 
 // Put takes ownership of body, which the caller must not modify afterwards.
-func (a *Async) Put(ctx context.Context, key string, body []byte) (string, error) {
+func (a *async) Put(ctx context.Context, key string, body []byte) (string, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -92,7 +94,7 @@ func (a *Async) Put(ctx context.Context, key string, body []byte) (string, error
 }
 
 // Close stops accepting bodies and waits for the queued uploads until ctx is done.
-func (a *Async) Close(ctx context.Context) error {
+func (a *async) Close(ctx context.Context) error {
 	a.mu.Lock()
 	if !a.closed {
 		a.closed = true
@@ -115,7 +117,7 @@ func (a *Async) Close(ctx context.Context) error {
 	}
 }
 
-func (a *Async) work() {
+func (a *async) work() {
 	defer a.wg.Done()
 
 	for j := range a.queue {

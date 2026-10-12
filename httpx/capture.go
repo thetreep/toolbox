@@ -24,7 +24,7 @@ type captureSnapshot struct {
 	binaryLabel string
 }
 
-func (t *LoggingTransport) newCapture(h http.Header, contentLength int64) *capture {
+func (t *loggingTransport) newCapture(h http.Header, contentLength int64) *capture {
 	limit := t.maxCapture
 	if t.sink == nil {
 		// Without a sink only a preview is ever logged, so buffering much beyond the budget is wasted memory.

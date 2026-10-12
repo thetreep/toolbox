@@ -19,7 +19,7 @@ const (
 )
 
 // json redacts matching keys and string values of src into dst in one pass, optionally compacting, and reports whether src was valid.
-func (r *Redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
+func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 	var (
 		stack   []byte
 		state   = stValue
@@ -210,7 +210,7 @@ func (r *Redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 	return dst, valid
 }
 
-func (r *Redactor) jsonKeyClass(raw []byte) class {
+func (r *redactor) jsonKeyClass(raw []byte) class {
 	for _, c := range raw {
 		if c == '\\' {
 			var key string

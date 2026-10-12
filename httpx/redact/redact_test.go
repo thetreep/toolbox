@@ -13,7 +13,7 @@ import (
 	"github.com/thetreep/toolbox/httpx/redact"
 )
 
-func newRedactor(opts ...redact.Option) *redact.Redactor {
+func newRedactor(opts ...redact.Option) redact.Redactor {
 	return redact.New(redact.Policy{
 		PII:      redact.Rules{Keys: []string{"firstName"}, Headers: []string{"X-User"}},
 		Volatile: redact.Rules{Keys: []string{"nonce"}, Headers: []string{"X-Trace"}, QueryParams: []string{"ts"}},

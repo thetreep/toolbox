@@ -23,7 +23,7 @@ type Result struct {
 }
 
 // Body redacts body according to its content type, sniffing the format when the type is not conclusive.
-func (r *Redactor) Body(contentType string, body []byte) Result {
+func (r *redactor) Body(contentType string, body []byte) Result {
 	if len(body) == 0 {
 		return Result{Body: []byte{}, Kind: KindText}
 	}

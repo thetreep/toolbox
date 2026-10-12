@@ -32,7 +32,7 @@ type loggedBody struct {
 	placeholder string
 }
 
-func (t *LoggingTransport) prepareBody(h http.Header, s captureSnapshot) loggedBody {
+func (t *loggingTransport) prepareBody(h http.Header, s captureSnapshot) loggedBody {
 	lb := loggedBody{size: s.total, captureCut: s.truncated}
 
 	if s.binary {
@@ -67,7 +67,7 @@ type renderedBody struct {
 	ref       string
 }
 
-func (t *LoggingTransport) emit(c *call, resp *http.Response, elapsed time.Duration, callErr error) {
+func (t *loggingTransport) emit(c *call, resp *http.Response, elapsed time.Duration, callErr error) {
 	req := c.req
 	reqHeaders := t.redactHeaders(req.Header)
 	query := t.redactor.Query(req.URL.Query())
@@ -162,7 +162,7 @@ func withBodyExtras(group slog.Attr, r renderedBody) slog.Attr {
 	return slog.Attr{Key: group.Key, Value: slog.GroupValue(attrs...)}
 }
 
-func (t *LoggingTransport) redactHeaders(h http.Header) http.Header {
+func (t *loggingTransport) redactHeaders(h http.Header) http.Header {
 	out := t.redactor.Header(h)
 
 	for name, values := range out {
@@ -212,7 +212,7 @@ func splitBudget(room, needReq, needResp int, hasResp, failed bool) (reqRoom, re
 	}
 }
 
-func (t *LoggingTransport) renderBody(ctx context.Context, key string, b loggedBody, room int) renderedBody {
+func (t *loggingTransport) renderBody(ctx context.Context, key string, b loggedBody, room int) renderedBody {
 	if b.placeholder != "" {
 		return renderedBody{value: b.placeholder}
 	}

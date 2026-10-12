@@ -102,7 +102,7 @@ func cannedResponse(status int, contentType, body string) roundTripFunc {
 	}
 }
 
-func newTestTransport(base http.RoundTripper, opts ...LoggingOption) *LoggingTransport {
+func newTestTransport(base http.RoundTripper, opts ...LoggingOption) LoggingTransport {
 	tr := NewLoggingTransport("demo", base, redact.Policy{}, opts...)
 
 	var tick int64

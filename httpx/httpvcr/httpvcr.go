@@ -69,7 +69,7 @@ func recordMode() recorder.Mode {
 }
 
 // saveHook redacts a freshly recorded interaction before it reaches the cassette.
-func saveHook(red *redact.Redactor) recorder.HookFunc {
+func saveHook(red redact.Redactor) recorder.HookFunc {
 	return func(i *cassette.Interaction) error {
 		u, err := url.Parse(i.Request.URL)
 		if err != nil {
@@ -115,11 +115,11 @@ func syncLength(contentLength *int64, headers http.Header, body string) {
 	}
 }
 
-func redactBody(red *redact.Redactor, headers http.Header, body string) string {
+func redactBody(red redact.Redactor, headers http.Header, body string) string {
 	return string(red.Body(headers.Get("Content-Type"), []byte(body)).Body)
 }
 
-func redactURL(red *redact.Redactor, u *url.URL) *url.URL {
+func redactURL(red redact.Redactor, u *url.URL) *url.URL {
 	out := *u
 	out.RawQuery = red.RawQuery(u.RawQuery)
 	out.Path, out.RawPath = red.Text(u.Path), ""
@@ -132,7 +132,7 @@ func redactURL(red *redact.Redactor, u *url.URL) *url.URL {
 }
 
 // matcher compares normalized copies: neither the live request nor the cassette entry is modified.
-func matcher(red *redact.Redactor) cassette.MatcherFunc {
+func matcher(red redact.Redactor) cassette.MatcherFunc {
 	base := cassette.NewDefaultMatcher(cassette.WithIgnoreAuthorization())
 
 	return func(live *http.Request, saved cassette.Request) bool {
@@ -145,7 +145,7 @@ func matcher(red *redact.Redactor) cassette.MatcherFunc {
 	}
 }
 
-func normalizeLive(red *redact.Redactor, live *http.Request) (*http.Request, bool) {
+func normalizeLive(red redact.Redactor, live *http.Request) (*http.Request, bool) {
 	body, ok := readBody(live)
 	if !ok {
 		return nil, false
@@ -166,7 +166,7 @@ func normalizeLive(red *redact.Redactor, live *http.Request) (*http.Request, boo
 	return clone, true
 }
 
-func normalizeSaved(red *redact.Redactor, saved cassette.Request) cassette.Request {
+func normalizeSaved(red redact.Redactor, saved cassette.Request) cassette.Request {
 	if u, err := url.Parse(saved.URL); err == nil {
 		saved.URL = redactURL(red, u).String()
 	}

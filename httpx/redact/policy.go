@@ -84,8 +84,10 @@ func (c class) placeholder() string {
 	return Placeholder
 }
 
-// Redactor applies a compiled Policy; it is safe for concurrent use.
-type Redactor struct {
+// Redactor applies a compiled Policy and is safe for concurrent use; the pointer alias leaves no usable zero value.
+type Redactor = *redactor
+
+type redactor struct {
 	headers     map[string]class
 	queryParams map[string]class
 	keys        map[string]class
@@ -102,14 +104,14 @@ type options struct{ volatile bool }
 func WithVolatile() Option { return func(o *options) { o.volatile = true } }
 
 // New compiles p on top of Default(), which cannot be dropped.
-func New(p Policy, opts ...Option) *Redactor {
+func New(p Policy, opts ...Option) Redactor {
 	var o options
 	for _, opt := range opts {
 		opt(&o)
 	}
 
 	p = Merge(Default(), p)
-	r := &Redactor{
+	r := &redactor{
 		headers:     map[string]class{},
 		queryParams: map[string]class{},
 		keys:        map[string]class{},
@@ -156,7 +158,7 @@ func New(p Policy, opts ...Option) *Redactor {
 }
 
 // Header returns a copy of h with matching headers replaced and detectors run on the other values.
-func (r *Redactor) Header(h http.Header) http.Header {
+func (r *redactor) Header(h http.Header) http.Header {
 	if h == nil {
 		return nil
 	}
@@ -182,7 +184,7 @@ func (r *Redactor) Header(h http.Header) http.Header {
 }
 
 // Query returns a copy of q with matching parameters replaced and detectors run on the other values.
-func (r *Redactor) Query(q url.Values) url.Values {
+func (r *redactor) Query(q url.Values) url.Values {
 	if q == nil {
 		return nil
 	}
@@ -208,7 +210,7 @@ func (r *Redactor) Query(q url.Values) url.Values {
 }
 
 // Form redacts parsed form values: query parameter rules and body key rules both apply.
-func (r *Redactor) Form(f url.Values) url.Values {
+func (r *redactor) Form(f url.Values) url.Values {
 	if f == nil {
 		return nil
 	}
@@ -234,7 +236,7 @@ func (r *Redactor) Form(f url.Values) url.Values {
 }
 
 // RawQuery redacts an encoded query string and returns it re-encoded with sorted keys.
-func (r *Redactor) RawQuery(raw string) string {
+func (r *redactor) RawQuery(raw string) string {
 	// Pairs that do not parse are dropped, which is the safe side for a redactor.
 	values, _ := url.ParseQuery(raw)
 
@@ -242,7 +244,7 @@ func (r *Redactor) RawQuery(raw string) string {
 }
 
 // Text runs the detectors on arbitrary text.
-func (r *Redactor) Text(s string) string {
+func (r *redactor) Text(s string) string {
 	out, found := scan(nil, []byte(s), false, true)
 	if found == 0 {
 		return s
@@ -251,7 +253,7 @@ func (r *Redactor) Text(s string) string {
 	return string(out)
 }
 
-func (r *Redactor) keyClass(name []byte) class {
+func (r *redactor) keyClass(name []byte) class {
 	if len(name) == 0 || len(name) > r.maxKeyLen {
 		return classNone
 	}
@@ -284,7 +286,7 @@ func localName(name []byte) []byte {
 	return name
 }
 
-func (r *Redactor) xmlNameClass(name []byte) class {
+func (r *redactor) xmlNameClass(name []byte) class {
 	if c := r.keyClass(name); c != classNone {
 		return c
 	}

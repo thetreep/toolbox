@@ -63,7 +63,7 @@ type trackedBody struct {
 
 func (b *trackedBody) Close() error { b.script.closed++; return nil }
 
-func newTestTransport(base http.RoundTripper, opts ...Option) (*Transport, *[]time.Duration) {
+func newTestTransport(base http.RoundTripper, opts ...Option) (Transport, *[]time.Duration) {
 	tr := NewTransport(base, opts...)
 
 	var (

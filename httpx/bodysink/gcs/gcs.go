@@ -12,7 +12,7 @@ import (
 )
 
 // New returns an asynchronous sink writing to gs://bucket/prefix/<key>; call Close on shutdown to flush it.
-func New(client *storage.Client, bucket, prefix string, opts ...bodysink.Option) *bodysink.Async {
+func New(client *storage.Client, bucket, prefix string, opts ...bodysink.Option) bodysink.Async {
 	open := func(ctx context.Context, name string) io.WriteCloser {
 		return client.Bucket(bucket).Object(name).NewWriter(ctx)
 	}
@@ -22,7 +22,7 @@ func New(client *storage.Client, bucket, prefix string, opts ...bodysink.Option)
 
 type writerFunc func(ctx context.Context, name string) io.WriteCloser
 
-func newWithWriter(open writerFunc, bucket, prefix string, opts ...bodysink.Option) *bodysink.Async {
+func newWithWriter(open writerFunc, bucket, prefix string, opts ...bodysink.Option) bodysink.Async {
 	object := func(key string) string { return path.Join(prefix, key) }
 	ref := func(key string) string { return "gs://" + bucket + "/" + object(key) }
 

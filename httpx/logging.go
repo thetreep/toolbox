@@ -38,38 +38,40 @@ type BodySink interface {
 }
 
 // LoggingOption customizes NewLoggingTransport.
-type LoggingOption func(*LoggingTransport)
+type LoggingOption func(*loggingTransport)
 
 // WithParentRequestID sets X-Parent-Request-ID from the request context ("unknown" when empty).
 func WithParentRequestID(fn func(ctx context.Context) string) LoggingOption {
-	return func(t *LoggingTransport) { t.parentRequestID = fn }
+	return func(t *loggingTransport) { t.parentRequestID = fn }
 }
 
 // WithUserAgent overrides the User-Agent header of outgoing requests.
 func WithUserAgent(userAgent string) LoggingOption {
-	return func(t *LoggingTransport) { t.userAgent = userAgent }
+	return func(t *loggingTransport) { t.userAgent = userAgent }
 }
 
 // WithBodySink stores bodies that exceed the entry budget and logs a reference instead.
 func WithBodySink(sink BodySink) LoggingOption {
-	return func(t *LoggingTransport) { t.sink = sink }
+	return func(t *loggingTransport) { t.sink = sink }
 }
 
 // WithEntryBudget caps the serialized size of a log entry, in bytes.
 func WithEntryBudget(bytes int) LoggingOption {
-	return func(t *LoggingTransport) { t.budget = bytes }
+	return func(t *loggingTransport) { t.budget = bytes }
 }
 
 // WithMaxCapture caps the bytes buffered per body (at most twice the budget without a BodySink).
 func WithMaxCapture(bytes int) LoggingOption {
-	return func(t *LoggingTransport) { t.maxCapture = bytes }
+	return func(t *loggingTransport) { t.maxCapture = bytes }
 }
 
-// LoggingTransport logs every outgoing call as a redacted structured entry and traces it.
-type LoggingTransport struct {
+// LoggingTransport logs every outgoing call as a redacted structured entry and traces it; the pointer alias leaves no usable zero value.
+type LoggingTransport = *loggingTransport
+
+type loggingTransport struct {
 	apiName         string
 	base            http.RoundTripper
-	redactor        *redact.Redactor
+	redactor        redact.Redactor
 	tracer          trace.Tracer
 	parentRequestID func(ctx context.Context) string
 	userAgent       string
@@ -83,12 +85,12 @@ type LoggingTransport struct {
 // NewLoggingTransport wraps base (a default transport when nil); policy is merged on top of redact.Default().
 func NewLoggingTransport(
 	apiName string, base http.RoundTripper, policy redact.Policy, opts ...LoggingOption,
-) *LoggingTransport {
+) LoggingTransport {
 	if base == nil {
 		base = NewTransport()
 	}
 
-	t := &LoggingTransport{
+	t := &loggingTransport{
 		apiName:    apiName,
 		base:       base,
 		redactor:   redact.New(policy),
@@ -107,7 +109,7 @@ func NewLoggingTransport(
 }
 
 // RoundTrip implements http.RoundTripper without mutating req.
-func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *loggingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	start := t.now()
 	childID := t.newID()
 
@@ -188,7 +190,7 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 type call struct {
-	t        *LoggingTransport
+	t        *loggingTransport
 	ctx      context.Context //nolint:containedctx // carries the span and the log attributes until the body is closed
 	span     trace.Span
 	req      *http.Request
@@ -291,7 +293,7 @@ func mediaType(h http.Header) string {
 }
 
 // redactedPath scans the decoded path so percent-encoded values are caught, but keeps the original escaping when clean.
-func (t *LoggingTransport) redactedPath(u *url.URL) string {
+func (t *loggingTransport) redactedPath(u *url.URL) string {
 	redacted := t.redactor.Text(u.Path)
 	if redacted == u.Path {
 		return u.EscapedPath()

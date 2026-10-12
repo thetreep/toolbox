@@ -27,29 +27,31 @@ const (
 type ShouldRetry func(req *http.Request, resp *http.Response, err error) bool
 
 // Option customizes NewTransport.
-type Option func(*Transport)
+type Option func(*transport)
 
 // WithMaxTries sets the total number of attempts, the first one included (default 3).
-func WithMaxTries(n int) Option { return func(t *Transport) { t.maxTries = max(n, 1) } }
+func WithMaxTries(n int) Option { return func(t *transport) { t.maxTries = max(n, 1) } }
 
 // WithMaxElapsed gives up once the next wait would exceed this duration since the first attempt (default 10s).
-func WithMaxElapsed(d time.Duration) Option { return func(t *Transport) { t.maxElapsed = d } }
+func WithMaxElapsed(d time.Duration) Option { return func(t *transport) { t.maxElapsed = d } }
 
 // WithBackoff sets the exponential wait between attempts (default 200ms doubling up to 2s, jittered).
 func WithBackoff(initial, maxDelay time.Duration) Option {
-	return func(t *Transport) { t.initialDelay, t.maxDelay = max(initial, 0), max(maxDelay, 0) }
+	return func(t *transport) { t.initialDelay, t.maxDelay = max(initial, 0), max(maxDelay, 0) }
 }
 
 // WithShouldRetry replaces DefaultShouldRetry, which also removes the idempotency guard.
 func WithShouldRetry(fn ShouldRetry) Option {
-	return func(t *Transport) { t.shouldRetry, t.customPolicy = fn, true }
+	return func(t *transport) { t.shouldRetry, t.customPolicy = fn, true }
 }
 
 // WithMaxBufferedBody bounds the body buffered to rewind requests without GetBody (default 10 MiB).
-func WithMaxBufferedBody(bytes int) Option { return func(t *Transport) { t.maxBuffered = bytes } }
+func WithMaxBufferedBody(bytes int) Option { return func(t *transport) { t.maxBuffered = bytes } }
 
-// Transport is an opt-in retrying http.RoundTripper, meant to wrap the logging transport so each try is logged.
-type Transport struct {
+// Transport is an opt-in retrying http.RoundTripper, meant to wrap the logging transport; the pointer alias leaves no usable zero value.
+type Transport = *transport
+
+type transport struct {
 	base         http.RoundTripper
 	maxTries     int
 	maxElapsed   time.Duration
@@ -65,12 +67,12 @@ type Transport struct {
 }
 
 // NewTransport wraps base (http.DefaultTransport when nil).
-func NewTransport(base http.RoundTripper, opts ...Option) *Transport {
+func NewTransport(base http.RoundTripper, opts ...Option) Transport {
 	if base == nil {
 		base = http.DefaultTransport
 	}
 
-	t := &Transport{
+	t := &transport{
 		base:         base,
 		maxTries:     defaultMaxTries,
 		maxElapsed:   defaultMaxElapsed,
@@ -126,7 +128,7 @@ func retryableError(ctx context.Context, err error) bool {
 }
 
 // RoundTrip implements http.RoundTripper.
-func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.maxTries == 1 || !t.mayRetry(req) {
 		return t.base.RoundTrip(req)
 	}
@@ -180,12 +182,12 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 // mayRetry skips the body handling for calls that the default policy would never retry.
-func (t *Transport) mayRetry(req *http.Request) bool {
+func (t *transport) mayRetry(req *http.Request) bool {
 	return t.customPolicy || isIdempotent(req)
 }
 
 // rewindable returns req, or a clone with a replayable body when the original cannot be re-read.
-func (t *Transport) rewindable(req *http.Request) (*http.Request, error) {
+func (t *transport) rewindable(req *http.Request) (*http.Request, error) {
 	if req.Body == nil || req.Body == http.NoBody || req.GetBody != nil {
 		return req, nil
 	}
@@ -222,7 +224,7 @@ type joinedBody struct {
 
 func (b *joinedBody) Close() error { return b.closer.Close() }
 
-func (t *Transport) backoff(attempt int) time.Duration {
+func (t *transport) backoff(attempt int) time.Duration {
 	d := t.initialDelay
 
 	for i := 1; i < attempt && d < t.maxDelay; i++ {
