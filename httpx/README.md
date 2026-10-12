@@ -12,7 +12,7 @@ La v1 vivait dans pelican et avait trois défauts qui font mal en prod :
 
 ## Les décisions
 
-- `redact` : une policy déclarative (`Secrets`, `PII`, `Volatile`), composable par `Merge` (append-only, `Default()` toujours inclus). Un seul passage tokenizer sur les octets, pas de unmarshal/remarshal : ~260 MB/s contre ~9 MB/s pour N regex. Des détecteurs filet de sécurité (email, téléphone, PAN+Luhn, IBAN, JWT, Basic/Bearer) tournent sur les valeurs string.
+- `redact` : une policy déclarative (`Secrets`, `PII`, `Volatile`), composable par `Merge` (append-only, `Default()` toujours inclus). Un seul passage tokenizer sur les octets, pas de unmarshal/remarshal : un ordre de grandeur plus rapide que N regex (voir `redact/bench_test.go`). Des détecteurs filet de sécurité (email, téléphone, PAN+Luhn, IBAN, JWT, Basic/Bearer) tournent sur les valeurs string.
 - `LoggingTransport` : ne mute jamais la requête, capture la réponse en streaming (borné), log à la fermeture du body. `duration` mesure le temps jusqu'aux headers de réponse, pas la lecture du body par l'appelant. Le budget est calculé sur l'entrée sérialisée, JSON valide loggé comme objet, sinon preview tronquée sur une frontière de rune. Le schéma du log reste celui lu par le reporting.
 - `bodysink` : au-delà du budget, le body complet (redacté) part dans GCS en async, le log garde la preview et `bodyRef`.
 - `httpretry` : opt-in, séparé. Rejoue seulement GET/HEAD/OPTIONS/PUT/DELETE ou une requête avec `Idempotency-Key`, respecte `Retry-After`.
@@ -44,6 +44,6 @@ client, recording := httpvcr.NewClient(t, "pao", policy, nil)
 httpvcr.AssertNoPII(t, "testdata") // dans un test dédié, échoue si une cassette contient de la PII
 ```
 
-`CI` force le replay, `K7_RECORD=1` force l'enregistrement.
+`CI` force le replay, `K7_RECORD=1` force le réenregistrement, sinon la cassette est enregistrée si absente.
 
 Le sink se ferme au shutdown : `defer sink.Close(ctx)`.

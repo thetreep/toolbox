@@ -7,12 +7,11 @@ import (
 
 // capture buffers up to limit bytes of a body; the lock is needed because the transport may still be writing.
 type capture struct {
-	mu        sync.Mutex
-	buf       []byte
-	limit     int
-	total     int64
-	truncated bool
-	// binary bodies are only counted, never buffered.
+	mu          sync.Mutex
+	buf         []byte
+	limit       int
+	total       int64
+	truncated   bool
 	binaryLabel string
 	binary      bool
 }
@@ -28,7 +27,7 @@ type captureSnapshot struct {
 func (t *LoggingTransport) newCapture(h http.Header, contentLength int64) *capture {
 	limit := t.maxCapture
 	if t.sink == nil {
-		// Without a sink only a preview is ever logged, so buffering more than the budget is wasted memory.
+		// Without a sink only a preview is ever logged, so buffering much beyond the budget is wasted memory.
 		limit = min(limit, 2*t.budget)
 	}
 
