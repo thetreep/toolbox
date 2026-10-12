@@ -318,3 +318,10 @@ func TestNeverPanics(t *testing.T) {
 		}
 	}
 }
+
+func TestFormValues(t *testing.T) {
+	got := newRedactor().Form(url.Values{"client_secret": {"s"}, "KEY": {"k"}, "mail": {"jean@example.com"}, "q": {"paris"}})
+	assert.Equal(t, url.Values{
+		"client_secret": {"REDACTED"}, "KEY": {"REDACTED"}, "mail": {"[REDACTED:email]"}, "q": {"paris"},
+	}, got)
+}

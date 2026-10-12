@@ -207,6 +207,32 @@ func (r *Redactor) Query(q url.Values) url.Values {
 	return out
 }
 
+// Form redacts parsed form values: query parameter rules and body key rules both apply.
+func (r *Redactor) Form(f url.Values) url.Values {
+	if f == nil {
+		return nil
+	}
+
+	out := make(url.Values, len(f))
+
+	for name, values := range f {
+		if c := r.formKeys[strings.ToLower(name)]; c != classNone {
+			out[name] = []string{c.placeholder()}
+
+			continue
+		}
+
+		redacted := make([]string, len(values))
+		for i, v := range values {
+			redacted[i] = r.Text(v)
+		}
+
+		out[name] = redacted
+	}
+
+	return out
+}
+
 // RawQuery redacts an encoded query string and returns it re-encoded with sorted keys.
 func (r *Redactor) RawQuery(raw string) string {
 	// Pairs that do not parse are dropped, which is the safe side for a redactor.

@@ -1,0 +1,93 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 264
+        host: routes.googleapis.com
+        body: |-
+            {
+            	"origin": {
+            		"location": {
+            			"latLng": {
+            				"latitude": 48.8566,
+            				"longitude": 2.3522
+            			}
+            		}
+            	},
+            	"destination": {
+            		"location": {
+            			"latLng": {
+            				"latitude": 48.8673,
+            				"longitude": 2.3522
+            			}
+            		}
+            	},
+            	"travelMode": 3,
+            	"departureTime": "2026-04-21T20:42:42.000000042+07:00",
+            	"languageCode": "FR",
+            	"regionCode": "FR",
+            	"units": 1
+            }
+        form:
+            $alt:
+                - json;enum-encoding=int
+            key:
+                - OBFUSCATED
+        headers:
+            Content-Type:
+                - application/json
+            User-Agent:
+                - imaas
+            X-Parent-Request-Id:
+                - unknown
+            X-Request-Id:
+                - OBFUSCATED
+            x-goog-api-client:
+                - OBFUSCATED
+            x-goog-fieldmask:
+                - routes.duration,routes.distanceMeters
+        url: https://routes.googleapis.com/directions/v2:computeRoutes?%24alt=json%3Benum-encoding%3Dint&key=OBFUSCATED
+        method: POST
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: |
+            {
+            	"routes": [
+            		{
+            			"distanceMeters": 1444,
+            			"duration": "1207s"
+            		}
+            	]
+            }
+        headers:
+            Alt-Svc:
+                - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+            Content-Type:
+                - application/json; charset=UTF-8
+            Date:
+                - Fri, 06 Mar 2026 09:49:43 GMT
+            Server:
+                - scaffolding on HTTPServer2
+            Server-Timing:
+                - l2gfet4t7; dur=63
+            Vary:
+                - Origin
+                - X-Origin
+                - Referer
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - SAMEORIGIN
+            X-Xss-Protection:
+                - "0"
+        status: 200 OK
+        code: 200
+        duration: 81.079135ms
