@@ -43,6 +43,7 @@ func (t *loggingTransport) prepareBody(h http.Header, s captureSnapshot) loggedB
 
 	res := t.redactor.Body(h.Get("Content-Type"), s.buf)
 	lb.body = res.Body
+	// FIXME: a capture cut mid-value can leave a partial card number or phone visible.
 	// encoding/json is the final judge: an invalid RawMessage would make the log handler drop the attribute.
 	lb.jsonOK = res.Kind == redact.KindJSON && res.ValidJSON && !s.truncated && json.Valid(res.Body)
 
@@ -56,6 +57,8 @@ func (b loggedBody) need() int {
 		return len(b.placeholder) + 2
 	case b.jsonOK:
 		return rawJSONSize(b.body)
+	case b.captureCut:
+		return escapedSize(b.body) + 2 + len(truncationMarker(int64(len(b.body)), b.size)) + 8
 	default:
 		return escapedSize(b.body) + 2
 	}
@@ -65,6 +68,7 @@ type renderedBody struct {
 	value     any
 	truncated bool
 	ref       string
+	refCut    bool
 }
 
 func (t *loggingTransport) emit(c *call, resp *http.Response, elapsed time.Duration, callErr error) {
@@ -155,6 +159,10 @@ func withBodyExtras(group slog.Attr, r renderedBody) slog.Attr {
 		attrs = append(attrs, slog.String("bodyRef", r.ref))
 	}
 
+	if r.refCut {
+		attrs = append(attrs, slog.Bool("bodyRefPartial", true))
+	}
+
 	if r.truncated {
 		attrs = append(attrs, slog.Bool("bodyTruncated", true))
 	}
@@ -233,7 +241,7 @@ func (t *loggingTransport) renderBody(ctx context.Context, key string, b loggedB
 			logger.Warn(ctx, "could not store the full HTTP body, keeping the preview only",
 				slog.String("error", err.Error()), slog.String("bodyKey", key))
 		} else {
-			r.ref = ref
+			r.ref, r.refCut = ref, b.captureCut
 		}
 	}
 
@@ -249,9 +257,13 @@ func (t *loggingTransport) renderBody(ctx context.Context, key string, b loggedB
 
 // truncatedPreview cuts body on a rune boundary so that its serialized form, marker included, fits in room.
 func truncatedPreview(body []byte, total int64, room int) string {
-	keep := fitEscaped(body, room-2-len(fmt.Sprintf("…[truncated %d/%d bytes]", len(body), total))-8)
+	keep := fitEscaped(body, room-2-len(truncationMarker(int64(len(body)), total))-8)
 
-	return fmt.Sprintf("%s…[truncated %d/%d bytes]", body[:keep], keep, total)
+	return string(body[:keep]) + truncationMarker(int64(keep), total)
+}
+
+func truncationMarker(kept, total int64) string {
+	return fmt.Sprintf("…[truncated %d/%d bytes]", kept, total)
 }
 
 // fitEscaped returns the longest rune-aligned prefix length whose serialized size is at most room.

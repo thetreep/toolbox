@@ -535,6 +535,78 @@ func TestOversizeBodiesGoToTheSink(t *testing.T) {
 	assert.Greater(t, len(stored), 1<<20/2)
 }
 
+func TestPartialBodyRefIsFlagged(t *testing.T) {
+	var out lockedBuffer
+
+	sink := &fakeSink{}
+	tr := newTestTransport(
+		cannedResponse(200, "application/json", `{"items":[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6}]}`),
+		WithBodySink(sink), WithMaxCapture(32),
+	)
+
+	doRequest(t, tr, &out, http.MethodPost, "https://api.example.test/v1/search", "application/json",
+		`{"origin":{"city":"Paris"},"destination":{"city":"Lyon"},"passengers":[1,2,3]}`)
+
+	lines := out.lines()
+	require.Len(t, lines, 1)
+	assertGolden(t, "testdata/logging_entry_partial.golden.json", lines[0])
+
+	entry := parseEntry(t, lines[0])
+	for _, side := range []string{"request", "response"} {
+		part := entry[side].(map[string]any)
+		assert.Equal(t, true, part["bodyRefPartial"], side)
+		assert.Contains(t, part, "bodyRef", side)
+	}
+
+	assert.Len(t, sink.puts, 2)
+}
+
+func TestCompleteBodyRefIsNotFlaggedPartial(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "application/json", bigJSON(20000)), WithBodySink(&fakeSink{}))
+	doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/big", "", "")
+
+	resp := parseEntry(t, out.lines()[0])["response"].(map[string]any)
+	assert.Contains(t, resp, "bodyRef")
+	assert.NotContains(t, resp, "bodyRefPartial")
+}
+
+func TestQueryAndCookiesAreRedactedInTheEntry(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "text/plain", "ok"))
+
+	ctx := logger.CtxWithLogger(context.Background(), jsonLogger(&out))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.example.test/v1/search?q=paris&key=K-SECRET&api_key=A-SECRET&access_token=T-SECRET", nil)
+	require.NoError(t, err)
+
+	req.Header.Set("Cookie", "session=COOKIE-SECRET")
+
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+
+	_, _ = io.Copy(io.Discard, resp.Body)
+	require.NoError(t, resp.Body.Close())
+
+	line := out.lines()[0]
+	for _, secret := range []string{"K-SECRET", "A-SECRET", "T-SECRET", "COOKIE-SECRET", "sid=abc"} {
+		assert.NotContains(t, line, secret)
+	}
+
+	entry := parseEntry(t, line)
+	query := entry["request"].(map[string]any)["query"].(map[string]any)
+	assert.Equal(t, []any{"paris"}, query["q"])
+
+	for _, name := range []string{"key", "api_key", "access_token"} {
+		assert.Equal(t, []any{"REDACTED"}, query[name], name)
+	}
+
+	assert.Equal(t, []any{"REDACTED"}, entry["request"].(map[string]any)["headers"].(map[string]any)["Cookie"])
+	assert.Equal(t, []any{"REDACTED"}, entry["response"].(map[string]any)["headers"].(map[string]any)["Set-Cookie"])
+}
+
 func TestSinkFailureKeepsThePreview(t *testing.T) {
 	var out lockedBuffer
 
