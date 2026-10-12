@@ -80,6 +80,7 @@ func classNames(found uint16) []string {
 
 // scan runs every detector in a single left-to-right pass; with rewrite it appends s to dst with matches replaced.
 func scan(dst, s []byte, jsonStr, rewrite bool) ([]byte, uint16) {
+	// FIXME: escaped JSON strings (\u0040, \") and XML entities (&#64;) aren't decoded before detectors run.
 	var (
 		found uint16
 		last  int
@@ -305,6 +306,7 @@ func matchFRPhone(s []byte, i int) (end int, ok bool) {
 
 // matchPAN matches 13 to 19 digits, optionally grouped by single spaces or dashes, that pass the Luhn check.
 func matchPAN(s []byte, i int) (end int, ok bool) {
+	// TODO: PAN detector false positives on Luhn-valid 13-19 digit strings (e.g. ms timestamps as strings).
 	const minDigits, maxDigits = 13, 19
 
 	var (

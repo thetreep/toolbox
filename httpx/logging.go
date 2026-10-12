@@ -90,6 +90,7 @@ func NewLoggingTransport(
 		base = NewTransport()
 	}
 
+	// TODO: no hook to inject a custom Redactor (business-specific detectors).
 	t := &loggingTransport{
 		apiName:    apiName,
 		base:       base,
