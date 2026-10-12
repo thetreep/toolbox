@@ -258,16 +258,71 @@ func TestCanceledContextErrorsAreNotRetried(t *testing.T) {
 	assert.Len(t, base.calls, 1)
 }
 
-func TestCustomPolicyOwnsTheDecision(t *testing.T) {
+func TestCustomPolicyDecidesWhichFailuresAreRetried(t *testing.T) {
 	base := &script{steps: []step{{status: 409}, {status: 200}}}
 	tr, _ := newTestTransport(base, WithShouldRetry(func(_ *http.Request, resp *http.Response, _ error) bool {
 		return resp != nil && resp.StatusCode == 409
 	}))
 
-	resp, err := do(t, tr, "POST", "x")
+	resp, err := do(t, tr, "GET", "")
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Len(t, base.calls, 2)
+
+	base = &script{steps: []step{{status: 404}, {status: 200}}}
+	tr, _ = newTestTransport(base, WithShouldRetry(func(_ *http.Request, resp *http.Response, _ error) bool {
+		return resp != nil && resp.StatusCode == 404
+	}))
+
+	resp, err = do(t, tr, "GET", "", "Idempotency-Key", "k")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	base = &script{steps: []step{{status: 409}, {status: 200}}}
+	tr, _ = newTestTransport(base, WithShouldRetry(func(*http.Request, *http.Response, error) bool { return false }))
+
+	resp, err = do(t, tr, "GET", "")
+	require.NoError(t, err)
+	assert.Equal(t, 409, resp.StatusCode, "a predicate can narrow the defaults")
+	assert.Len(t, base.calls, 1)
+}
+
+func TestCustomPolicyCannotBypassTheIdempotencyGuard(t *testing.T) {
+	always := WithShouldRetry(func(*http.Request, *http.Response, error) bool { return true })
+
+	base := &script{steps: []step{{status: 409}, {status: 200}}}
+	tr, slept := newTestTransport(base, always)
+
+	resp, err := do(t, tr, "POST", `{"book":true}`)
+	require.NoError(t, err)
+	assert.Equal(t, 409, resp.StatusCode)
+	assert.Len(t, base.calls, 1)
+	assert.Empty(t, *slept)
+
+	base = &script{steps: []step{{err: errors.New("connection reset")}, {status: 200}}}
+	tr, _ = newTestTransport(base, always)
+
+	_, err = do(t, tr, "POST", `{"book":true}`)
+	assert.Error(t, err)
+	assert.Len(t, base.calls, 1)
+
+	base = &script{steps: []step{{status: 409}, {status: 200}}}
+	tr, _ = newTestTransport(base, always)
+
+	resp, err = do(t, tr, "POST", `{"book":true}`, "Idempotency-Key", "k")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode, "an Idempotency-Key makes the request eligible")
+}
+
+func TestIsIdempotent(t *testing.T) {
+	for method, want := range map[string]bool{"GET": true, "HEAD": true, "OPTIONS": true, "PUT": true, "DELETE": true, "POST": false, "PATCH": false} {
+		req, _ := http.NewRequest(method, "https://api.example.test/x", nil)
+		assert.Equal(t, want, IsIdempotent(req), method)
+	}
+
+	req, _ := http.NewRequest("PATCH", "https://api.example.test/x", nil)
+	req.Header.Set("Idempotency-Key", "k")
+	assert.True(t, IsIdempotent(req))
 }
 
 func TestSingleTryIsAPassThrough(t *testing.T) {

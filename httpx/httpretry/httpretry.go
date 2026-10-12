@@ -40,9 +40,9 @@ func WithBackoff(initial, maxDelay time.Duration) Option {
 	return func(t *transport) { t.initialDelay, t.maxDelay = max(initial, 0), max(maxDelay, 0) }
 }
 
-// WithShouldRetry replaces DefaultShouldRetry, which also removes the idempotency guard.
+// WithShouldRetry replaces DefaultShouldRetry; it is only asked about requests that pass IsIdempotent.
 func WithShouldRetry(fn ShouldRetry) Option {
-	return func(t *transport) { t.shouldRetry, t.customPolicy = fn, true }
+	return func(t *transport) { t.shouldRetry = fn }
 }
 
 // WithMaxBufferedBody bounds the body buffered to rewind requests without GetBody (default 10 MiB).
@@ -59,7 +59,6 @@ type transport struct {
 	maxDelay     time.Duration
 	maxBuffered  int
 	shouldRetry  ShouldRetry
-	customPolicy bool
 
 	now    func() time.Time
 	sleep  func(ctx context.Context, d time.Duration) error
@@ -92,12 +91,8 @@ func NewTransport(base http.RoundTripper, opts ...Option) Transport {
 	return t
 }
 
-// DefaultShouldRetry retries network errors, 5xx and 429, but only idempotent methods or calls carrying an Idempotency-Key.
+// DefaultShouldRetry retries network errors, 5xx and 429.
 func DefaultShouldRetry(req *http.Request, resp *http.Response, err error) bool {
-	if !isIdempotent(req) {
-		return false
-	}
-
 	if err != nil {
 		return retryableError(req.Context(), err)
 	}
@@ -105,7 +100,8 @@ func DefaultShouldRetry(req *http.Request, resp *http.Response, err error) bool 
 	return resp.StatusCode >= http.StatusInternalServerError || resp.StatusCode == http.StatusTooManyRequests
 }
 
-func isIdempotent(req *http.Request) bool {
+// IsIdempotent reports whether repeating req is safe: an idempotent method or an Idempotency-Key header.
+func IsIdempotent(req *http.Request) bool {
 	switch req.Method {
 	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPut, http.MethodDelete:
 		return true
@@ -114,6 +110,7 @@ func isIdempotent(req *http.Request) bool {
 	return req.Header.Get("Idempotency-Key") != ""
 }
 
+// FIXME: every non-TLS transport error is retried, it should be restricted to transient ones.
 func retryableError(ctx context.Context, err error) bool {
 	if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return false
@@ -129,7 +126,7 @@ func retryableError(ctx context.Context, err error) bool {
 
 // RoundTrip implements http.RoundTripper.
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if t.maxTries == 1 || !t.mayRetry(req) {
+	if t.maxTries == 1 || !IsIdempotent(req) {
 		return t.base.RoundTrip(req)
 	}
 
@@ -175,15 +172,11 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			drainAndClose(resp.Body)
 		}
 
+		// FIXME: cancelling during the backoff hides the last real error behind the context error.
 		if sleepErr := t.sleep(req.Context(), delay); sleepErr != nil {
 			return nil, sleepErr
 		}
 	}
-}
-
-// mayRetry skips the body handling for calls that the default policy would never retry.
-func (t *transport) mayRetry(req *http.Request) bool {
-	return t.customPolicy || isIdempotent(req)
 }
 
 // rewindable returns req, or a clone with a replayable body when the original cannot be re-read.
