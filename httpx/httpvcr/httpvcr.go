@@ -20,9 +20,7 @@ import (
 // IsRecording reports whether the client talks to the real API.
 type IsRecording = bool
 
-// NewClient returns a logging client backed by the cassette testdata/<t.Name()>_<apiName>.k7.yaml.
-//
-// CI replays only, K7_RECORD=1 re-records, otherwise the cassette is recorded when missing.
+// NewClient returns a logging client backed by testdata/<t.Name()>_<apiName>.k7.yaml (CI replays, K7_RECORD=1 records).
 func NewClient(
 	t testing.TB, apiName string, policy redact.Policy, base http.RoundTripper, opts ...httpx.LoggingOption,
 ) (*http.Client, IsRecording) {

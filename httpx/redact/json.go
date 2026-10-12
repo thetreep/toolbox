@@ -18,8 +18,7 @@ const (
 	volatileString = `"` + VolatilePlaceholder + `"`
 )
 
-// json rewrites src into dst in one pass: compacts it, replaces the values of matching keys and runs the
-// detectors on string values. It tolerates malformed input and reports whether src was valid JSON.
+// json compacts src into dst, redacts matching keys and string values in one pass, and reports whether src was valid.
 func (r *Redactor) json(dst, src []byte) ([]byte, bool) {
 	var (
 		stack   []byte
@@ -231,8 +230,7 @@ func isJSONDelimiter(c byte) bool {
 	return false
 }
 
-// scanJSONString returns the index just past the closing quote (len(src)+1 when unterminated) and whether
-// the string respects the JSON grammar.
+// scanJSONString returns the index past the closing quote (len(src)+1 when unterminated) and whether the grammar holds.
 func scanJSONString(src []byte, start int) (end int, wellFormed bool) {
 	wellFormed = true
 

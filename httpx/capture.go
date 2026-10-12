@@ -5,8 +5,7 @@ import (
 	"sync"
 )
 
-// capture buffers up to limit bytes of a body and counts the rest; the transport may still be writing when
-// the entry is built, hence the lock.
+// capture buffers up to limit bytes of a body; the lock is needed because the transport may still be writing.
 type capture struct {
 	mu        sync.Mutex
 	buf       []byte

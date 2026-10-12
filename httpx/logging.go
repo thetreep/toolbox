@@ -64,7 +64,6 @@ func WithMaxCapture(bytes int) LoggingOption {
 }
 
 // LoggingTransport logs every outgoing call as a redacted structured entry and traces it.
-// Compose retries above it so that each try is logged on its own.
 type LoggingTransport struct {
 	apiName         string
 	base            http.RoundTripper

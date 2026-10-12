@@ -48,9 +48,7 @@ func WithShouldRetry(fn ShouldRetry) Option {
 // WithMaxBufferedBody bounds the body buffered to rewind requests without GetBody (default 10 MiB).
 func WithMaxBufferedBody(bytes int) Option { return func(t *Transport) { t.maxBuffered = bytes } }
 
-// Transport is an opt-in retrying http.RoundTripper.
-//
-// Compose it above the logging transport, retry(logging(base)), so that each attempt is logged on its own.
+// Transport is an opt-in retrying http.RoundTripper, meant to wrap the logging transport so each try is logged.
 type Transport struct {
 	base         http.RoundTripper
 	maxTries     int

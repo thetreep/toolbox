@@ -12,8 +12,7 @@ import (
 	"github.com/thetreep/toolbox/httpx/redact"
 )
 
-// AssertNoPII fails for every cassette under dir that still holds something the detectors recognize.
-// It reports the file, the field and the detector class, never the matched value.
+// AssertNoPII fails for each cassette under dir holding detectable data, reporting file, field and class only.
 func AssertNoPII(t testing.TB, dir string) {
 	t.Helper()
 

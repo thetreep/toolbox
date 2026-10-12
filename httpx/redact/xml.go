@@ -5,8 +5,7 @@ import (
 	"net/url"
 )
 
-// xml rewrites src into dst in one pass, keeping unmatched bytes as-is: matching elements lose their content,
-// matching attributes lose their value and the detectors run on text nodes and attribute values.
+// xml redacts matching elements, attributes and text nodes in one pass, copying everything else as-is.
 func (r *Redactor) xml(dst, src []byte) []byte {
 	var (
 		depth int
