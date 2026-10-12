@@ -4,6 +4,7 @@ package httpx
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -58,7 +59,7 @@ func WithEntryBudget(bytes int) LoggingOption {
 	return func(t *LoggingTransport) { t.budget = bytes }
 }
 
-// WithMaxCapture caps the bytes buffered per body when a BodySink is configured.
+// WithMaxCapture caps the bytes buffered per body (at most twice the budget without a BodySink).
 func WithMaxCapture(bytes int) LoggingOption {
 	return func(t *LoggingTransport) { t.maxCapture = bytes }
 }
@@ -114,7 +115,7 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		attribute.String("target-api", t.apiName),
 		attribute.String("http.request.method", req.Method),
 		attribute.String("server.address", req.URL.Hostname()),
-		attribute.String("url.path", req.URL.Path),
+		attribute.String("url.path", t.redactor.Text(req.URL.EscapedPath())),
 		attribute.String("request-id", childID),
 	)
 
@@ -180,7 +181,7 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 
 	c.respBody = t.newCapture(resp.Header, resp.ContentLength)
-	resp.Body = &logOnCloseBody{ReadCloser: resp.Body, capture: c.respBody, done: func() { c.finish(resp, nil) }}
+	resp.Body = &logOnCloseBody{ReadCloser: resp.Body, capture: c.respBody, done: func(err error) { c.finish(resp, err) }}
 
 	return resp, nil
 }
@@ -201,7 +202,7 @@ type call struct {
 
 func (c *call) finish(resp *http.Response, err error) {
 	c.once.Do(func() {
-		c.t.emit(c, resp, c.elapsed)
+		c.t.emit(c, resp, c.elapsed, err)
 
 		switch {
 		case err != nil:
@@ -219,15 +220,17 @@ func (c *call) finish(resp *http.Response, err error) {
 type logOnCloseBody struct {
 	io.ReadCloser
 	capture *capture
-	done    func()
+	done    func(error)
 }
 
 func (b *logOnCloseBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	b.capture.write(p[:n])
 
-	if err != nil {
-		b.done()
+	if errors.Is(err, io.EOF) {
+		b.done(nil)
+	} else if err != nil {
+		b.done(err)
 	}
 
 	return n, err
@@ -235,7 +238,7 @@ func (b *logOnCloseBody) Read(p []byte) (int, error) {
 
 func (b *logOnCloseBody) Close() error {
 	err := b.ReadCloser.Close()
-	b.done()
+	b.done(nil)
 
 	return err
 }

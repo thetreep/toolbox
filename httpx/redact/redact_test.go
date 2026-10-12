@@ -325,3 +325,27 @@ func TestFormValues(t *testing.T) {
 		"client_secret": {"REDACTED"}, "KEY": {"REDACTED"}, "mail": {"[REDACTED:email]"}, "q": {"paris"},
 	}, got)
 }
+
+func TestInvalidJSONKeepsSpacesSoDetectorsSeeSplitValues(t *testing.T) {
+	body := []byte(`Error: call 06 12 34 56 78 card 4111 1111 1111 1111 mail jean@example.com`)
+
+	for _, contentType := range []string{"application/json", ""} {
+		res := newRedactor().Body(contentType, body)
+		assert.False(t, res.ValidJSON)
+
+		for _, leak := range []string{"0612345678", "06 12 34 56 78", "4111111111111111", "4111 1111 1111 1111", "jean@example.com"} {
+			assert.NotContains(t, string(res.Body), leak, contentType)
+		}
+	}
+}
+
+func TestSniffedTruncatedJSONStillRedactsKeys(t *testing.T) {
+	res := newRedactor().Body("text/plain", []byte(`{"a":1,"password":"hunter2","b":{"token":"abc`))
+	assert.NotContains(t, string(res.Body), "hunter2")
+	assert.NotContains(t, string(res.Body), "abc")
+}
+
+func TestFormPairWithoutValueRunsDetectors(t *testing.T) {
+	res := newRedactor().Body("application/x-www-form-urlencoded", []byte(`a=1&jean@example.com`))
+	assert.NotContains(t, string(res.Body), "jean@example.com")
+}

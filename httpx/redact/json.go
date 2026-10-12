@@ -18,8 +18,8 @@ const (
 	volatileString = `"` + VolatilePlaceholder + `"`
 )
 
-// json compacts src into dst, redacts matching keys and string values in one pass, and reports whether src was valid.
-func (r *Redactor) json(dst, src []byte) ([]byte, bool) {
+// json redacts matching keys and string values of src into dst in one pass, optionally compacting, and reports whether src was valid.
+func (r *Redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 	var (
 		stack   []byte
 		state   = stValue
@@ -63,6 +63,10 @@ func (r *Redactor) json(dst, src []byte) ([]byte, bool) {
 
 		switch c {
 		case ' ', '\t', '\r', '\n':
+			if !compact {
+				emit(c)
+			}
+
 			i++
 		case '"':
 			end, wellFormed := scanJSONString(src, i)
@@ -211,7 +215,7 @@ func (r *Redactor) jsonKeyClass(raw []byte) class {
 		if c == '\\' {
 			var key string
 			if json.Unmarshal(append(append([]byte{'"'}, raw...), '"'), &key) != nil {
-				return classNone
+				return classSecret
 			}
 
 			return r.keyClass([]byte(key))

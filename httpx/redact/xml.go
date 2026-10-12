@@ -279,7 +279,9 @@ func (r *Redactor) form(dst, src []byte) []byte {
 func (r *Redactor) formPair(dst, pair []byte) []byte {
 	eq := bytes.IndexByte(pair, '=')
 	if eq < 0 {
-		return append(dst, pair...)
+		out, _ := scan(dst, pair, false, true)
+
+		return out
 	}
 
 	key, value := pair[:eq], pair[eq+1:]

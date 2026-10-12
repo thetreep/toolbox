@@ -35,10 +35,20 @@ func (r *Redactor) Body(contentType string, body []byte) Result {
 
 	switch kind {
 	case KindJSON:
-		out, valid := r.json(make([]byte, 0, len(body)+len(body)/8), body)
-		if valid || declared {
-			return Result{Body: out, Kind: KindJSON, ValidJSON: valid}
+		out, valid := r.json(make([]byte, 0, len(body)+len(body)/8), body, true)
+		if valid {
+			return Result{Body: out, Kind: KindJSON, ValidJSON: true}
 		}
+
+		// Invalid (truncated, HTML error page…): keep whitespace so detectors also see values split across tokens.
+		keyed, _ := r.json(make([]byte, 0, len(body)+len(body)/8), body, false)
+		out, _ = scan(make([]byte, 0, len(keyed)), keyed, false, true)
+
+		if declared {
+			return Result{Body: out, Kind: KindJSON}
+		}
+
+		return Result{Body: out, Kind: KindText}
 	case KindXML:
 		return Result{Body: r.xml(make([]byte, 0, len(body)+len(body)/8), body), Kind: KindXML}
 	case KindForm:

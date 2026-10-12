@@ -67,7 +67,7 @@ type renderedBody struct {
 	ref       string
 }
 
-func (t *LoggingTransport) emit(c *call, resp *http.Response, elapsed time.Duration) {
+func (t *LoggingTransport) emit(c *call, resp *http.Response, elapsed time.Duration, callErr error) {
 	req := c.req
 	reqHeaders := t.redactHeaders(req.Header)
 	query := t.redactor.Query(req.URL.Query())
@@ -89,7 +89,7 @@ func (t *LoggingTransport) emit(c *call, resp *http.Response, elapsed time.Durat
 		status = strconv.Itoa(resp.StatusCode)
 	}
 
-	summary := fmt.Sprintf("%s %s %s%s -> %s (%s)", t.apiName, req.Method, req.URL.Host, req.URL.Path, status, elapsed.Round(time.Millisecond))
+	summary := fmt.Sprintf("%s %s %s%s -> %s (%s)", t.apiName, req.Method, req.URL.Host, path, status, elapsed.Round(time.Millisecond))
 
 	overhead := entrySlack + entryStructure + 2*len(summary) + 2*len(path) + 2*len(hostname) +
 		jsonSize(reqHeaders) + jsonSize(query) + jsonSize(respHeaders)
@@ -131,14 +131,21 @@ func (t *LoggingTransport) emit(c *call, resp *http.Response, elapsed time.Durat
 		responseAttr = withBodyExtras(attr, respRendered)
 	}
 
-	logger.Info(
-		c.ctx, summary,
+	attrs := []any{
 		slog.String("event", "outgoing_http_call"),
 		slog.Duration("durationNanoSeconds", elapsed),
 		slog.String("duration", elapsed.String()),
 		requestAttr,
 		responseAttr,
-	)
+	}
+
+	if callErr != nil {
+		logger.Warn(c.ctx, summary, append(attrs, slog.String("error", t.redactor.Text(callErr.Error())))...)
+
+		return
+	}
+
+	logger.Info(c.ctx, summary, attrs...)
 }
 
 func withBodyExtras(group slog.Attr, r renderedBody) slog.Attr {

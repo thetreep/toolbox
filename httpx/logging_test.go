@@ -292,6 +292,43 @@ func TestDurationStopsAtResponseHeaders(t *testing.T) {
 	assert.Contains(t, entry["msg"], "(300ms)")
 }
 
+func TestPathIsRedactedInSummaryAndSpan(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "text/plain", "ok"))
+	_, _ = doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/users/jean@example.com", "", "")
+
+	line := out.lines()[0]
+	assert.NotContains(t, line, "jean@example.com")
+}
+
+func TestBodyReadErrorIsLogged(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: 200, Status: "OK", Header: http.Header{"Content-Type": {"text/plain"}},
+			Body: io.NopCloser(io.MultiReader(strings.NewReader("partial"), iotestErrReader{})), Request: r,
+		}, nil
+	}))
+	ctx := logger.CtxWithLogger(context.Background(), jsonLogger(&out))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.example.test/", nil)
+
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+
+	_, err = io.ReadAll(resp.Body)
+	require.Error(t, err)
+
+	entry := parseEntry(t, out.lines()[0])
+	assert.Equal(t, "WARN", entry["level"])
+	assert.Equal(t, "connection reset", entry["error"])
+}
+
+type iotestErrReader struct{}
+
+func (iotestErrReader) Read([]byte) (int, error) { return 0, errors.New("connection reset") }
+
 func TestBinaryBodiesAreLoggedAsSizeOnly(t *testing.T) {
 	var out lockedBuffer
 
@@ -322,6 +359,7 @@ func TestTransportErrorIsLogged(t *testing.T) {
 	entry := parseEntry(t, out.lines()[0])
 	assert.Contains(t, entry["msg"], "-> no response")
 	assert.Nil(t, entry["response"])
+	assert.Equal(t, "connection reset", entry["error"])
 }
 
 func TestRealServerWithRequestBodyStreaming(t *testing.T) {

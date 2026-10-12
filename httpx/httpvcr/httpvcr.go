@@ -3,6 +3,7 @@ package httpvcr
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,10 +18,10 @@ import (
 	"github.com/thetreep/toolbox/httpx/redact"
 )
 
-// IsRecording reports whether the client talks to the real API.
+// IsRecording is true when the client talks to the real API.
 type IsRecording = bool
 
-// NewClient returns a logging client backed by testdata/<t.Name()>_<apiName>.k7.yaml (CI replays, K7_RECORD=1 records).
+// NewClient returns a logging client backed by testdata/<t.Name()>_<apiName>.k7.yaml (CI replays, K7_RECORD=1 re-records, else records when missing).
 func NewClient(
 	t testing.TB, apiName string, policy redact.Policy, base http.RoundTripper, opts ...httpx.LoggingOption,
 ) (*http.Client, IsRecording) {
@@ -70,9 +71,12 @@ func recordMode() recorder.Mode {
 // saveHook redacts a freshly recorded interaction before it reaches the cassette.
 func saveHook(red *redact.Redactor) recorder.HookFunc {
 	return func(i *cassette.Interaction) error {
-		if u, err := url.Parse(i.Request.URL); err == nil {
-			i.Request.URL = redactURL(red, u).String()
+		u, err := url.Parse(i.Request.URL)
+		if err != nil {
+			return fmt.Errorf("httpvcr: parsing recorded URL: %w", err)
 		}
+
+		i.Request.URL = redactURL(red, u).String()
 
 		i.Request.Headers = red.Header(i.Request.Headers)
 		i.Response.Headers = red.Header(i.Response.Headers)
@@ -118,6 +122,7 @@ func redactBody(red *redact.Redactor, headers http.Header, body string) string {
 func redactURL(red *redact.Redactor, u *url.URL) *url.URL {
 	out := *u
 	out.RawQuery = red.RawQuery(u.RawQuery)
+	out.Path, out.RawPath = red.Text(u.Path), ""
 
 	if u.User != nil {
 		out.User = url.User(redact.Placeholder)

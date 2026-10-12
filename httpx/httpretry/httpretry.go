@@ -37,7 +37,7 @@ func WithMaxElapsed(d time.Duration) Option { return func(t *Transport) { t.maxE
 
 // WithBackoff sets the exponential wait between attempts (default 200ms doubling up to 2s, jittered).
 func WithBackoff(initial, maxDelay time.Duration) Option {
-	return func(t *Transport) { t.initialDelay, t.maxDelay = initial, maxDelay }
+	return func(t *Transport) { t.initialDelay, t.maxDelay = max(initial, 0), max(maxDelay, 0) }
 }
 
 // WithShouldRetry replaces DefaultShouldRetry, which also removes the idempotency guard.
@@ -125,7 +125,7 @@ func retryableError(ctx context.Context, err error) bool {
 	return !errors.As(err, &unknownAuthority) && !errors.As(err, &certificate)
 }
 
-// RoundTrip implements http.RoundTripper without mutating req.
+// RoundTrip implements http.RoundTripper.
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.maxTries == 1 || !t.mayRetry(req) {
 		return t.base.RoundTrip(req)
