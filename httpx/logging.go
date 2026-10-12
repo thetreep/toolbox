@@ -160,6 +160,9 @@ func (t *LoggingTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	}
 
 	resp, err := t.base.RoundTrip(out)
+	// Duration is time-to-headers: body streaming time depends on the caller, not the API.
+	c.elapsed = t.now().Sub(start)
+
 	if err != nil {
 		c.finish(nil, err)
 
@@ -190,6 +193,7 @@ type call struct {
 	resp     *http.Response
 	childID  string
 	start    time.Time
+	elapsed  time.Duration
 	reqBody  *capture
 	respBody *capture
 	once     sync.Once
@@ -197,9 +201,7 @@ type call struct {
 
 func (c *call) finish(resp *http.Response, err error) {
 	c.once.Do(func() {
-		elapsed := c.t.now().Sub(c.start)
-
-		c.t.emit(c, resp, elapsed)
+		c.t.emit(c, resp, c.elapsed)
 
 		switch {
 		case err != nil:

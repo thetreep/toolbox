@@ -260,6 +260,38 @@ func TestLoggedOnCloseWithoutReading(t *testing.T) {
 	require.Len(t, out.lines(), 1)
 }
 
+func TestDurationStopsAtResponseHeaders(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "text/plain", "slow body"))
+
+	clock := time.Date(2026, 4, 21, 8, 0, 0, 0, time.UTC)
+	tr.now = func() time.Time { return clock }
+
+	ctx := logger.CtxWithLogger(context.Background(), jsonLogger(&out))
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.example.test/", nil)
+
+	tr.base = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		clock = clock.Add(300 * time.Millisecond)
+
+		return cannedResponse(200, "text/plain", "slow body")(r)
+	})
+
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+
+	clock = clock.Add(10 * time.Second)
+
+	_, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	entry := parseEntry(t, out.lines()[0])
+	assert.Equal(t, float64(300*time.Millisecond), entry["durationNanoSeconds"])
+	assert.Equal(t, "300ms", entry["duration"])
+	assert.Contains(t, entry["msg"], "(300ms)")
+}
+
 func TestBinaryBodiesAreLoggedAsSizeOnly(t *testing.T) {
 	var out lockedBuffer
 
