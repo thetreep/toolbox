@@ -44,13 +44,14 @@ func (t *loggingTransport) prepareBody(h http.Header, s captureSnapshot) loggedB
 	res := t.redactor.Body(h.Get("Content-Type"), s.buf)
 	lb.body = res.Body
 	// FIXME: a capture cut mid-value can leave a partial card number or phone visible.
+
 	// encoding/json is the final judge: an invalid RawMessage would make the log handler drop the attribute.
 	lb.jsonOK = res.Kind == redact.KindJSON && res.ValidJSON && !s.truncated && json.Valid(res.Body)
 
 	return lb
 }
 
-// need is the serialized size of the body when logged in full.
+// need is the serialized size the body asks for in the budget split.
 func (b loggedBody) need() int {
 	switch {
 	case b.placeholder != "":
@@ -58,7 +59,7 @@ func (b loggedBody) need() int {
 	case b.jsonOK:
 		return rawJSONSize(b.body)
 	case b.captureCut:
-		return escapedSize(b.body) + 2 + len(truncationMarker(int64(len(b.body)), b.size)) + 8
+		return escapedSize(b.body) + previewOverhead(int64(len(b.body)), b.size)
 	default:
 		return escapedSize(b.body) + 2
 	}
@@ -257,9 +258,14 @@ func (t *loggingTransport) renderBody(ctx context.Context, key string, b loggedB
 
 // truncatedPreview cuts body on a rune boundary so that its serialized form, marker included, fits in room.
 func truncatedPreview(body []byte, total int64, room int) string {
-	keep := fitEscaped(body, room-2-len(truncationMarker(int64(len(body)), total))-8)
+	keep := fitEscaped(body, room-previewOverhead(int64(len(body)), total))
 
 	return string(body[:keep]) + truncationMarker(int64(keep), total)
+}
+
+// previewOverhead is what a truncated preview adds around its kept bytes: quotes, marker and its escaped ellipsis.
+func previewOverhead(kept, total int64) int {
+	return 2 + len(truncationMarker(kept, total)) + 8
 }
 
 func truncationMarker(kept, total int64) string {

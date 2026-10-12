@@ -635,6 +635,19 @@ func TestCaptureIsBoundedWithoutSink(t *testing.T) {
 	assert.Contains(t, resp["body"], "bytes]")
 }
 
+func TestCutCaptureKeepsItsWholePreviewWhenItFits(t *testing.T) {
+	var out lockedBuffer
+
+	body := strings.Repeat("x", 4000)
+	tr := newTestTransport(cannedResponse(200, "text/plain", body), WithMaxCapture(100))
+	doRequest(t, tr, &out, http.MethodPost, "https://api.example.test/", "text/plain", body)
+
+	entry := parseEntry(t, out.lines()[0])
+	for _, side := range []string{"request", "response"} {
+		assert.Equal(t, strings.Repeat("x", 100)+"…[truncated 100/4000 bytes]", entry[side].(map[string]any)["body"], side)
+	}
+}
+
 func TestGCPHandlerEmitsJSONBodiesRaw(t *testing.T) {
 	var out lockedBuffer
 
