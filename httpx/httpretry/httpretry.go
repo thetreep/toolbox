@@ -91,7 +91,7 @@ func NewTransport(base http.RoundTripper, opts ...Option) Transport {
 	return t
 }
 
-// DefaultShouldRetry retries network errors, 5xx and 429.
+// DefaultShouldRetry retries network errors, 5xx and 429; idempotency is checked by Transport, not here.
 func DefaultShouldRetry(req *http.Request, resp *http.Response, err error) bool {
 	if err != nil {
 		return retryableError(req.Context(), err)

@@ -274,9 +274,10 @@ func TestCustomPolicyDecidesWhichFailuresAreRetried(t *testing.T) {
 		return resp != nil && resp.StatusCode == 404
 	}))
 
-	resp, err = do(t, tr, "GET", "", "Idempotency-Key", "k")
+	resp, err = do(t, tr, "PATCH", "", "Idempotency-Key", "k")
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
+	assert.Len(t, base.calls, 2)
 
 	base = &script{steps: []step{{status: 409}, {status: 200}}}
 	tr, _ = newTestTransport(base, WithShouldRetry(func(*http.Request, *http.Response, error) bool { return false }))
@@ -312,6 +313,25 @@ func TestCustomPolicyCannotBypassTheIdempotencyGuard(t *testing.T) {
 	resp, err = do(t, tr, "POST", `{"book":true}`, "Idempotency-Key", "k")
 	require.NoError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "an Idempotency-Key makes the request eligible")
+}
+
+func TestNonIdempotentRequestSkipsPolicyAndBuffering(t *testing.T) {
+	base := &script{steps: []step{{status: 503}}}
+	tr, _ := newTestTransport(base, WithShouldRetry(func(*http.Request, *http.Response, error) bool {
+		t.Error("the policy must not be consulted for a non-idempotent request")
+		return true
+	}))
+
+	body := io.NopCloser(strings.NewReader(`{"book":true}`))
+	req, _ := http.NewRequest(http.MethodPost, "https://api.example.test/x", body)
+	req.GetBody = nil
+
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+	assert.Len(t, base.calls, 1)
+	assert.Same(t, req, resp.Request, "the original request is passed through untouched")
+	assert.Equal(t, `{"book":true}`, base.calls[0].body)
 }
 
 func TestIsIdempotent(t *testing.T) {
