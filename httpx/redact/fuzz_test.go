@@ -10,7 +10,7 @@ import (
 
 func fuzzPathRedactor() redact.Redactor {
 	return redact.New(redact.Policy{
-		Secrets:  redact.Rules{Keys: []string{"customer.name", "$.pin", "a.b.c"}},
+		Secrets:  redact.Rules{Keys: []string{"customer.name", "$.pin", "a.b.c", "s:driver.id"}},
 		Volatile: redact.Rules{Keys: []string{"driver.seat", "$.nonce"}},
 	}, redact.WithVolatile())
 }
@@ -105,7 +105,7 @@ func FuzzXML(f *testing.F) {
 		`<s:E xmlns:s="u"><ns:secret>p</ns:secret></s:E>`, `<a b=`, `<a b="`, `<token>x`, `</`, `<`, `<!DOCTYPE a [<!ENTITY x "y">]>`,
 		strings.Repeat("<a>", 5000), `<a mail="jean@example.com">06 12 34 56 78</a>`, "<a>\xff</a>", `<a b=c d=e>`,
 		`<customer name="x"><name>y</name></customer>`, `<a><customer><name>x</name></customer></a>`, `</a></a><customer name='x'/>`,
-		`<driver seat="1"><seat>2</seat></driver>`, `<nonce>n</nonce>`, `<customer name=`, strings.Repeat("<customer>", 2000),
+		`<driver seat="1"><seat>2</seat></driver>`, `<nonce>n</nonce>`, `<s:driver id="1"><s:id>2</s:id></s:driver>`, `<customer name=`, strings.Repeat("<customer>", 2000),
 	} {
 		f.Add(s)
 	}

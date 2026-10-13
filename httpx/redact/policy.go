@@ -105,7 +105,7 @@ type options struct{ volatile bool }
 // WithVolatile also redacts the Volatile rules, for cassette recording and matching.
 func WithVolatile() Option { return func(o *options) { o.volatile = true } }
 
-// New compiles p on top of Default(), which cannot be dropped.
+// New compiles p on top of Default(), which cannot be dropped; it panics on a dotted key with an empty segment (a..b, a., .a, $.).
 func New(p Policy, opts ...Option) Redactor {
 	var o options
 	for _, opt := range opts {
@@ -145,6 +145,11 @@ func New(p Policy, opts ...Option) Redactor {
 		}{p.Volatile, classVolatile})
 	}
 
+	// Volatile keys are checked even when not compiled, so a malformed one surfaces without WithVolatile.
+	for _, key := range p.Volatile.Keys {
+		parsePath(key)
+	}
+
 	for _, rs := range rulesets {
 		add(r.headers, rs.rules.Headers, rs.class)
 		add(r.queryParams, rs.rules.QueryParams, rs.class)
@@ -152,9 +157,10 @@ func New(p Policy, opts ...Option) Redactor {
 		for _, key := range rs.rules.Keys {
 			if parents, last, anchored, isPath := parsePath(key); isPath {
 				r.addPath(parents, last, anchored, rs.class)
-			} else {
-				add(r.keys, []string{key}, rs.class)
 			}
+
+			// A dotted key also matches a key spelled with the dots, so a path rule never fails open on flattened payloads.
+			add(r.keys, []string{key}, rs.class)
 		}
 
 		add(r.formKeys, rs.rules.QueryParams, rs.class)
