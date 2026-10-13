@@ -9,6 +9,7 @@ import (
 func (r *redactor) xml(dst, src []byte) []byte {
 	var (
 		depth int
+		names nameStack
 		// suppressBase is the depth of the redacted element whose content is being dropped.
 		suppressBase = -1
 		i            int
@@ -63,6 +64,10 @@ func (r *redactor) xml(dst, src []byte) []byte {
 
 			if depth > 0 {
 				depth--
+
+				if r.hasPaths {
+					names.pop()
+				}
 			}
 
 			if suppressBase >= 0 && depth == suppressBase {
@@ -75,7 +80,7 @@ func (r *redactor) xml(dst, src []byte) []byte {
 		default:
 			var next int
 
-			next, depth, suppressBase = r.xmlStartTag(&dst, src, i, depth, suppressBase)
+			next, depth, suppressBase = r.xmlStartTag(&dst, &names, src, i, depth, suppressBase)
 			i = next
 		}
 	}
@@ -103,7 +108,7 @@ func (r *redactor) xmlSpan(dst *[]byte, src []byte, i int, open, closing string,
 }
 
 // xmlStartTag handles one start tag at src[i] and returns the next index and updated depth and suppressBase.
-func (r *redactor) xmlStartTag(dst *[]byte, src []byte, i, depth, suppressBase int) (int, int, int) {
+func (r *redactor) xmlStartTag(dst *[]byte, names *nameStack, src []byte, i, depth, suppressBase int) (int, int, int) {
 	suppressed := suppressBase >= 0
 	j := i + 1
 
@@ -112,7 +117,12 @@ func (r *redactor) xmlStartTag(dst *[]byte, src []byte, i, depth, suppressBase i
 	}
 
 	name := src[i+1 : j]
-	elementClass := r.xmlNameClass(name)
+	elementClass := r.xmlNameClass(name, names)
+
+	if r.hasPaths {
+		names.push()
+		names.setTop(localName(name))
+	}
 
 	if !suppressed {
 		*dst = append(*dst, src[i:j]...)
@@ -141,7 +151,7 @@ func (r *redactor) xmlStartTag(dst *[]byte, src []byte, i, depth, suppressBase i
 
 			j++
 		default:
-			j = r.xmlAttribute(dst, src, j, suppressed)
+			j = r.xmlAttribute(dst, names, src, j, suppressed)
 		}
 	}
 
@@ -156,6 +166,10 @@ tagEnd:
 	}
 
 	if selfClosing {
+		if r.hasPaths {
+			names.pop()
+		}
+
 		return j, depth, suppressBase
 	}
 
@@ -168,7 +182,7 @@ tagEnd:
 }
 
 // xmlAttribute copies one name="value" attribute starting at src[j] and returns the index after it.
-func (r *redactor) xmlAttribute(dst *[]byte, src []byte, j int, suppressed bool) int {
+func (r *redactor) xmlAttribute(dst *[]byte, names *nameStack, src []byte, j int, suppressed bool) int {
 	nameStart := j
 	for j < len(src) && src[j] != '=' && !isXMLSpace(src[j]) && src[j] != '>' && src[j] != '/' {
 		j++
@@ -233,7 +247,7 @@ func (r *redactor) xmlAttribute(dst *[]byte, src []byte, j int, suppressed bool)
 	}
 
 	if !suppressed {
-		matched := r.xmlNameClass(name)
+		matched := r.xmlNameClass(name, names)
 
 		if quote == '"' || quote == '\'' {
 			*dst = append(*dst, quote)

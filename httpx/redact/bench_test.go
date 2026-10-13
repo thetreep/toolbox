@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+
+	"github.com/thetreep/toolbox/httpx/redact"
 )
 
 func largeJSON() []byte {
@@ -98,6 +100,13 @@ func BenchmarkSmallJSON(b *testing.B) {
 func BenchmarkLargeJSONCleanStrings(b *testing.B) {
 	body := bytes.ReplaceAll(largeJSON(), []byte("example.com"), []byte("example"))
 	r := newRedactor()
+
+	benchBody(b, body, func(in []byte) { r.Body("application/json", in) })
+}
+
+func BenchmarkLargeJSONPathRules(b *testing.B) {
+	body := largeJSON()
+	r := redact.New(redact.Policy{PII: redact.Rules{Keys: []string{"contact.phone", "$.offers.contact.email", "segments.to"}}})
 
 	benchBody(b, body, func(in []byte) { r.Body("application/json", in) })
 }

@@ -14,7 +14,7 @@ const (
 	VolatilePlaceholder = "VOLATILE"
 )
 
-// Rules are case-insensitive names to redact; Keys match JSON keys, XML elements and XML attributes at any depth.
+// Rules are case-insensitive names to redact; Keys match JSON keys, XML elements and XML attributes, dotted keys are paths (see README.md).
 type Rules struct {
 	Headers     []string
 	QueryParams []string
@@ -91,8 +91,10 @@ type redactor struct {
 	headers     map[string]class
 	queryParams map[string]class
 	keys        map[string]class
+	paths       map[string][]pathRule
 	formKeys    map[string]class
 	maxKeyLen   int
+	hasPaths    bool
 }
 
 // Option customizes New.
@@ -115,6 +117,7 @@ func New(p Policy, opts ...Option) Redactor {
 		headers:     map[string]class{},
 		queryParams: map[string]class{},
 		keys:        map[string]class{},
+		paths:       map[string][]pathRule{},
 		formKeys:    map[string]class{},
 	}
 
@@ -145,7 +148,15 @@ func New(p Policy, opts ...Option) Redactor {
 	for _, rs := range rulesets {
 		add(r.headers, rs.rules.Headers, rs.class)
 		add(r.queryParams, rs.rules.QueryParams, rs.class)
-		add(r.keys, rs.rules.Keys, rs.class)
+
+		for _, key := range rs.rules.Keys {
+			if parents, last, anchored, isPath := parsePath(key); isPath {
+				r.addPath(parents, last, anchored, rs.class)
+			} else {
+				add(r.keys, []string{key}, rs.class)
+			}
+		}
+
 		add(r.formKeys, rs.rules.QueryParams, rs.class)
 		add(r.formKeys, rs.rules.Keys, rs.class)
 	}
@@ -153,6 +164,8 @@ func New(p Policy, opts ...Option) Redactor {
 	for name := range r.keys {
 		r.maxKeyLen = max(r.maxKeyLen, len(name))
 	}
+
+	r.hasPaths = len(r.paths) > 0
 
 	return r
 }
@@ -284,12 +297,4 @@ func localName(name []byte) []byte {
 	}
 
 	return name
-}
-
-func (r *redactor) xmlNameClass(name []byte) class {
-	if c := r.keyClass(name); c != classNone {
-		return c
-	}
-
-	return r.keyClass(localName(name))
 }
