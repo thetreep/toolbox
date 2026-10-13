@@ -1,6 +1,10 @@
 package redact
 
-import "strings"
+import (
+	"fmt"
+	"slices"
+	"strings"
+)
 
 // pathRule is a dotted key such as "customer.name": the last segment is looked up by name, the parents are checked against the enclosing names.
 type pathRule struct {
@@ -9,18 +13,16 @@ type pathRule struct {
 	class    class
 }
 
-// parsePath splits a dotted key; a key with an empty segment is not a path and stays a literal name.
-func parsePath(key string) (parents []string, last string, anchored, ok bool) {
-	key, anchored = strings.CutPrefix(key, "$.")
-	if !anchored && !strings.Contains(key, ".") {
+// parsePath splits a dotted key; it panics on an empty segment since policies are static code.
+func parsePath(key string) (parents []string, last string, anchored, isPath bool) {
+	rest, anchored := strings.CutPrefix(key, "$.")
+	if !anchored && !strings.Contains(rest, ".") {
 		return nil, "", false, false
 	}
 
-	segments := strings.Split(lowerASCII(key), ".")
-	for _, s := range segments {
-		if s == "" {
-			return nil, "", false, false
-		}
+	segments := strings.Split(lowerASCII(rest), ".")
+	if slices.Contains(segments, "") {
+		panic(fmt.Sprintf("redact: key %q has an empty path segment", key))
 	}
 
 	return segments[:len(segments)-1], segments[len(segments)-1], anchored, true

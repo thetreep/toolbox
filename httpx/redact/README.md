@@ -16,4 +16,4 @@ redact.Policy{PII: redact.Rules{Keys: []string{"customer.name", "$.pin"}}}
 // -> {"customer":{"name":"REDACTED"},"agency":{"name":"y"},"pin":"REDACTED","a":{"pin":2}}
 ```
 
-Les règles `Volatile` ont la même sémantique. Les query params, champs de formulaire et headers restent plats : une clé avec des points y est un nom littéral. Une clé avec un segment vide (`a..b`, `a.`, `$.`) n'est pas un chemin et reste un nom littéral. En JSON, un chemin ne matche pas une clé plate qui contiendrait elle-même des points (`{"customer.name":..}`).
+Les règles `Volatile` ont la même sémantique. Les query params, champs de formulaire et headers restent plats : une clé avec des points y est un nom littéral. Un chemin matche aussi une clé JSON ou XML dont le nom contient littéralement les points (`{"customer.name":..}`). Une clé avec un segment vide (`a..b`, `a.`, `.a`, `$.`) fait paniquer `redact.New`.

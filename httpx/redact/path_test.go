@@ -40,7 +40,7 @@ func TestJSONPathKeys(t *testing.T) {
 		{"siblings reuse the chain slot", []string{"customer.name"}, `{"customer":{"id":1},"name":"n","other":{"name":"m"}}`, `{"customer":{"id":1},"name":"n","other":{"name":"m"}}`},
 		{"same path twice", []string{"customer.name"}, `{"a":{"customer":{"name":"1"}},"b":{"customer":{"name":"2"}}}`, `{"a":{"customer":{"name":"REDACTED"}},"b":{"customer":{"name":"REDACTED"}}}`},
 		{"after a redacted subtree", []string{"customer.name"}, `{"token":{"customer":{"name":"x"}},"customer":{"name":"y"}}`, `{"token":"REDACTED","customer":{"name":"REDACTED"}}`},
-		{"dotted key is not a flat name", []string{"customer.name"}, `{"customer.name":"n"}`, `{"customer.name":"n"}`},
+		{"dotted key also matches the literal name", []string{"customer.name", "$.pin"}, `{"customer.name":"n","Customer.Name":"m","a":{"customer.name":"o"},"$.pin":1}`, `{"customer.name":"REDACTED","Customer.Name":"REDACTED","a":{"customer.name":"REDACTED"},"$.pin":"REDACTED"}`},
 		{"key whose parent is a value in an array root", []string{"customer.name"}, `[{"customer":{"name":"n"}}]`, `[{"customer":{"name":"REDACTED"}}]`},
 
 		{"anchor top-level", []string{"$.name"}, `{"name":"n","a":{"name":"m"}}`, `{"name":"REDACTED","a":{"name":"m"}}`},
@@ -52,7 +52,6 @@ func TestJSONPathKeys(t *testing.T) {
 		{"plain key keeps matching everywhere", []string{"name", "customer.id"}, `{"name":"a","customer":{"name":"b","id":1}}`, `{"name":"REDACTED","customer":{"name":"REDACTED","id":"REDACTED"}}`},
 		{"plain and path on the same last segment", []string{"id", "customer.id"}, `{"id":1,"customer":{"id":2},"x":{"id":3}}`, `{"id":"REDACTED","customer":{"id":"REDACTED"},"x":{"id":"REDACTED"}}`},
 
-		{"empty segment makes it a literal name", []string{"a..b", ".a", "a.", "$.", "$..a"}, `{"a":{"b":1},"a..b":2,".a":3,"a.":4,"$.":5}`, `{"a":{"b":1},"a..b":"REDACTED",".a":"REDACTED","a.":"REDACTED","$.":"REDACTED"}`},
 		{"dollar without dot is a plain name", []string{"$name"}, `{"$name":1,"name":2}`, `{"$name":"REDACTED","name":2}`},
 	}
 
@@ -110,6 +109,8 @@ func TestXMLPathKeys(t *testing.T) {
 		{"anchor attribute of child", []string{"$.a.b.id"}, `<a id="1"><b id="2"/><c><b id="3"/></c></a>`, `<a id="1"><b id="REDACTED"/><c><b id="3"/></c></a>`},
 		{"anchor survives stray closing tags", []string{"$.a.id"}, `</x></x><a id="1"><b id="2"/></a>`, `</x></x><a id="REDACTED"><b id="2"/></a>`},
 
+		{"dotted key also matches the literal name", []string{"driver.last_name"}, `<a driver.last_name="x"><driver.last_name>y</driver.last_name></a>`, `<a driver.last_name="REDACTED"><driver.last_name>REDACTED</driver.last_name></a>`},
+
 		{"plain and path on the same last segment", []string{"id", "driver.last_name"}, `<a id="1"><driver id="2" last_name="x"/></a>`, `<a id="REDACTED"><driver id="REDACTED" last_name="REDACTED"/></a>`},
 	}
 
@@ -141,6 +142,19 @@ func TestPathKeysAreLiteralInFlatContexts(t *testing.T) {
 	assert.Equal(t, url.Values{"customer.name": {"REDACTED"}, "name": {"y"}}, got)
 
 	assert.Equal(t, "customer.name=1&name=2", r.RawQuery("customer.name=1&name=2"))
+}
+
+func TestMalformedPathKeyPanics(t *testing.T) {
+	for _, key := range []string{"a..b", "a.", ".a", "$.", "$..a", "$.a."} {
+		t.Run(key, func(t *testing.T) {
+			want := `redact: key "` + key + `" has an empty path segment`
+			assert.PanicsWithValue(t, want, func() { pathRedactor(key) })
+			assert.PanicsWithValue(t, want, func() { redact.New(redact.Policy{Secrets: redact.Rules{Keys: []string{key}}}) })
+			assert.PanicsWithValue(t, want, func() { redact.New(redact.Policy{Volatile: redact.Rules{Keys: []string{key}}}) })
+		})
+	}
+
+	assert.NotPanics(t, func() { pathRedactor("$name", "$", "a.b", "$.a") })
 }
 
 func TestPathRulesWithMalformedInputFailClosed(t *testing.T) {
