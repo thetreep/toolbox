@@ -8,7 +8,7 @@ Dans `Rules.Keys`, une clé sans point (`name`) matche ce nom à n'importe quell
 
 Un préfixe `$.` ancre le chemin à la racine : `$.name` ne matche que le `name` de premier niveau (un tableau à la racine est transparent aussi).
 
-En XML, le chemin porte sur les noms d'éléments, préfixes de namespace ignorés ; le dernier segment est un élément ou un attribut de l'élément parent : `driver.last_name` matche `<driver last_name="..">` et `<driver><last_name>..</last_name></driver>`. `$.` ancre devant l'élément racine du document : `$.driver` matche l'élément racine `<driver>`, `$.driver.id` son attribut ou enfant `id`.
+En XML, le chemin porte sur les noms d'éléments, préfixes de namespace ignorés, dans le document comme dans les parents de la règle (`soap:Body.ssn` matche `<Body><ssn>`) ; le dernier segment est un élément ou un attribut de l'élément parent : `driver.last_name` matche `<driver last_name="..">` et `<driver><last_name>..</last_name></driver>`. `$.` ancre devant l'élément racine du document : `$.driver` matche l'élément racine `<driver>`, `$.driver.id` son attribut ou enfant `id`.
 
 ```go
 redact.Policy{PII: redact.Rules{Keys: []string{"customer.name", "$.pin"}}}

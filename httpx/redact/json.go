@@ -253,8 +253,7 @@ func (r *redactor) jsonKeyClass(raw []byte, names *nameStack, suppressed bool) c
 		return classSecret
 	}
 
-	// The enclosing object keys are every level but the innermost one.
-	return r.nameClass(low, names, len(names.ends)-1)
+	return r.nameClass(low, names, len(names.ends)-1, false)
 }
 
 func isJSONDelimiter(c byte) bool {

@@ -34,8 +34,9 @@ func TestJSONPathKeys(t *testing.T) {
 		{"three segments", []string{"a.b.c"}, `{"x":{"a":{"b":{"c":1,"d":2}}},"b":{"c":3},"a":{"x":{"c":4}}}`, `{"x":{"a":{"b":{"c":"REDACTED","d":2}}},"b":{"c":3},"a":{"x":{"c":4}}}`},
 		{"suffix longer than chain", []string{"a.b.c"}, `{"b":{"c":1}}`, `{"b":{"c":1}}`},
 		{"case insensitive", []string{"Customer.NAME"}, `{"CUSTOMER":{"Name":"n"}}`, `{"CUSTOMER":{"Name":"REDACTED"}}`},
-		{"escaped key in chain", []string{"customer.name"}, `{"customer":{"name":"n"}}`, `{"customer":{"name":"REDACTED"}}`},
-		{"escaped last key", []string{"customer.name"}, `{"customer":{"name":"n"}}`, `{"customer":{"name":"REDACTED"}}`},
+		{"escaped key in chain", []string{"customer.name"}, `{"\u0063ustomer":{"name":"n"}}`, `{"\u0063ustomer":{"name":"REDACTED"}}`},
+		{"escaped last key", []string{"customer.name"}, `{"customer":{"nam\u0065":"n"}}`, `{"customer":{"nam\u0065":"REDACTED"}}`},
+		{"escaped anchored key", []string{"$.name"}, `{"\u004eame":"n"}`, `{"\u004eame":"REDACTED"}`},
 		{"value is an object", []string{"driver.name"}, `{"driver":{"name":{"first":"a"},"age":3}}`, `{"driver":{"name":"REDACTED","age":3}}`},
 		{"siblings reuse the chain slot", []string{"customer.name"}, `{"customer":{"id":1},"name":"n","other":{"name":"m"}}`, `{"customer":{"id":1},"name":"n","other":{"name":"m"}}`},
 		{"same path twice", []string{"customer.name"}, `{"a":{"customer":{"name":"1"}},"b":{"customer":{"name":"2"}}}`, `{"a":{"customer":{"name":"REDACTED"}},"b":{"customer":{"name":"REDACTED"}}}`},
@@ -79,6 +80,17 @@ func TestJSONPathVolatileAndSecret(t *testing.T) {
 	assert.JSONEq(t, `{"nonce":"VOLATILE","x":{"nonce":"m"},"ts":"VOLATILE","a":{"ts":"REDACTED"},"phone":"REDACTED","driver":{"phone":"REDACTED","seat":"VOLATILE"}}`, string(on.Body))
 }
 
+func TestPathRuleClassPrecedence(t *testing.T) {
+	r := redact.New(redact.Policy{
+		Secrets:  redact.Rules{Keys: []string{"a.b"}},
+		PII:      redact.Rules{Keys: []string{"c.d", "id"}},
+		Volatile: redact.Rules{Keys: []string{"a.b", "c.d", "x.id"}},
+	}, redact.WithVolatile())
+
+	res := r.Body("application/json", []byte(`{"a":{"b":1},"c":{"d":2},"x":{"id":3}}`))
+	assert.JSONEq(t, `{"a":{"b":"REDACTED"},"c":{"d":"REDACTED"},"x":{"id":"REDACTED"}}`, string(res.Body))
+}
+
 func TestXMLPathKeys(t *testing.T) {
 	tests := []struct {
 		name string
@@ -96,6 +108,8 @@ func TestXMLPathKeys(t *testing.T) {
 		{"no parent", []string{"driver.last_name"}, `<last_name>x</last_name>`, `<last_name>x</last_name>`},
 		{"other element", []string{"driver.last_name"}, `<a><driver last_name="x"/><passenger last_name="y"/></a>`, `<a><driver last_name="REDACTED"/><passenger last_name="y"/></a>`},
 		{"case insensitive", []string{"Driver.LAST_NAME"}, `<DRIVER Last_Name="x"><Last_Name>y</Last_Name></DRIVER>`, `<DRIVER Last_Name="REDACTED"><Last_Name>REDACTED</Last_Name></DRIVER>`},
+		{"namespace prefix on an attribute", []string{"driver.last_name"}, `<s:driver s:last_name="x"/>`, `<s:driver s:last_name="REDACTED"/>`},
+		{"namespace prefix in the rule's parents", []string{"soap:body.ssn"}, `<soap:Envelope><soap:Body><ssn>x</ssn></soap:Body><ssn>y</ssn></soap:Envelope>`, `<soap:Envelope><soap:Body><ssn>REDACTED</ssn></soap:Body><ssn>y</ssn></soap:Envelope>`},
 		{"namespace prefixes are ignored in the chain", []string{"driver.last_name"}, `<s:a xmlns:s="u"><s:driver><s:last_name>x</s:last_name></s:driver></s:a>`, `<s:a xmlns:s="u"><s:driver><s:last_name>REDACTED</s:last_name></s:driver></s:a>`},
 		{"sibling after a self-closing element", []string{"driver.last_name"}, `<a><driver/><last_name>x</last_name></a>`, `<a><driver/><last_name>x</last_name></a>`},
 		{"after a redacted subtree", []string{"driver.last_name"}, `<a><token><driver><last_name>x</last_name></driver></token><driver><last_name>y</last_name></driver></a>`, `<a><token>REDACTED</token><driver><last_name>REDACTED</last_name></driver></a>`},
@@ -169,6 +183,10 @@ func TestPathRulesWithMalformedInputFailClosed(t *testing.T) {
 		{"trailing comma", "application/json", `{"customer":{"name":"hunter2",}}`},
 		{"extra closers", "application/json", `{}}]]{"customer":{"name":"hunter2"}}`},
 		{"mismatched closer then key", "application/json", `{"customer":[}{"name":"hunter2"}`},
+		{"invalid escape in a parent", "application/json", `{"cu\qstomer":{"name":"hunter2"}}`},
+		{"invalid escape in the last key", "application/json", `{"customer":{"na\qme":"hunter2"}}`},
+		{"sniffed without content type", "", `{"customer":{"name":"hunter2"}}`},
+		{"sniffed xml", "text/plain", `<driver><last_name>hunter2</last_name></driver>`},
 		{"anchored invalid", "application/json", `{"pin":"hunter2" "x":1`},
 		{"sniffed truncated", "text/plain", `{"a":[1,{"customer":{"name":"hunter2`},
 		{"xml truncated element", "text/xml", `<driver><last_name>hunter2`},
