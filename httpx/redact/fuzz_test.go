@@ -8,6 +8,13 @@ import (
 	"github.com/thetreep/toolbox/httpx/redact"
 )
 
+func fuzzPathRedactor() redact.Redactor {
+	return redact.New(redact.Policy{
+		Secrets:  redact.Rules{Keys: []string{"customer.name", "$.pin", "a.b.c"}},
+		Volatile: redact.Rules{Keys: []string{"driver.seat", "$.nonce"}},
+	}, redact.WithVolatile())
+}
+
 func jsonSeeds() []string {
 	b := string(rune(92))
 
@@ -19,6 +26,9 @@ func jsonSeeds() []string {
 		`{"mail":"jean@example.com","n":4111111111111111,"p":"06 12 34 56 78"}`, "{\"a\":\"\x01\"}", "\xff\xfe{",
 		strings.Repeat("[", 5000), strings.Repeat(`{"a":`, 2000), `{"a":"` + b, `{"a":"` + b + `u12`,
 		`-1.5e+10`, `{"a":-}`, ` { "secret" : true } `,
+		`{"customer":{"name":"x"},"pin":1}`, `[{"customer":[{"name":"x"}],"pin":1}]`, `{"a":{"b":{"c":[1,{"c":2}]}}}`,
+		`{"cust` + b + `u006fmer":{"name":"x"}}`, `{"customer":{"name":"x"`, `{"customer":[}{"name":"x"}`, `}]{"customer":{"name":1}}`,
+		`{"driver":{"seat":{"a":[1]}},"nonce":"n"}`, strings.Repeat(`{"customer":`, 2000),
 	}
 }
 
@@ -27,20 +37,22 @@ func FuzzJSON(f *testing.F) {
 		f.Add(s)
 	}
 
-	r := newRedactor(redact.WithVolatile())
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor()}
 
 	f.Fuzz(func(t *testing.T, in string) {
-		res := r.Body("application/json", []byte(in))
-		if len(in) == 0 {
-			return
-		}
+		for _, r := range redactors {
+			res := r.Body("application/json", []byte(in))
+			if len(in) == 0 {
+				return
+			}
 
-		if res.ValidJSON != json.Valid([]byte(in)) {
-			t.Fatalf("ValidJSON=%v but json.Valid=%v for %q", res.ValidJSON, json.Valid([]byte(in)), in)
-		}
+			if res.ValidJSON != json.Valid([]byte(in)) {
+				t.Fatalf("ValidJSON=%v but json.Valid=%v for %q", res.ValidJSON, json.Valid([]byte(in)), in)
+			}
 
-		if res.ValidJSON && !json.Valid(res.Body) {
-			t.Fatalf("valid input produced invalid output %q -> %q", in, res.Body)
+			if res.ValidJSON && !json.Valid(res.Body) {
+				t.Fatalf("valid input produced invalid output %q -> %q", in, res.Body)
+			}
 		}
 	})
 }
@@ -66,21 +78,46 @@ func FuzzJSONKeyValue(f *testing.F) {
 	})
 }
 
+func FuzzJSONPathValue(f *testing.F) {
+	for _, s := range jsonSeeds() {
+		f.Add(s)
+	}
+
+	r := fuzzPathRedactor()
+
+	f.Fuzz(func(t *testing.T, value string) {
+		if !json.Valid([]byte(value)) {
+			return
+		}
+
+		res := r.Body("application/json", []byte(`{"a":1,"x":{"customer":[{"name":`+value+`}]},"pin":`+value+`,"b":[2]}`))
+
+		const want = `{"a":1,"x":{"customer":[{"name":"REDACTED"}]},"pin":"REDACTED","b":[2]}`
+		if string(res.Body) != want {
+			t.Fatalf("value %q leaked: %q", value, res.Body)
+		}
+	})
+}
+
 func FuzzXML(f *testing.F) {
 	for _, s := range []string{
 		``, `<a/>`, `<a><token>x</token></a>`, `<a password="x" b='y'>t</a>`, `<![CDATA[x]]>`, `<!-- c -->`, `<?xml version="1.0"?>`,
 		`<s:E xmlns:s="u"><ns:secret>p</ns:secret></s:E>`, `<a b=`, `<a b="`, `<token>x`, `</`, `<`, `<!DOCTYPE a [<!ENTITY x "y">]>`,
 		strings.Repeat("<a>", 5000), `<a mail="jean@example.com">06 12 34 56 78</a>`, "<a>\xff</a>", `<a b=c d=e>`,
+		`<customer name="x"><name>y</name></customer>`, `<a><customer><name>x</name></customer></a>`, `</a></a><customer name='x'/>`,
+		`<driver seat="1"><seat>2</seat></driver>`, `<nonce>n</nonce>`, `<customer name=`, strings.Repeat("<customer>", 2000),
 	} {
 		f.Add(s)
 	}
 
-	r := newRedactor(redact.WithVolatile())
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor()}
 
 	f.Fuzz(func(t *testing.T, in string) {
-		res := r.Body("text/xml", []byte(in))
-		if len(res.Body) > 4*len(in)+64 {
-			t.Fatalf("output %d bytes for %d input bytes", len(res.Body), len(in))
+		for _, r := range redactors {
+			res := r.Body("text/xml", []byte(in))
+			if len(res.Body) > 4*len(in)+64 {
+				t.Fatalf("output %d bytes for %d input bytes", len(res.Body), len(in))
+			}
 		}
 	})
 }
@@ -103,6 +140,24 @@ func FuzzXMLKeyContent(f *testing.F) {
 	})
 }
 
+func FuzzXMLPathContent(f *testing.F) {
+	f.Add(`secret`)
+	f.Add(`a & b jean@example.com`)
+
+	r := fuzzPathRedactor()
+
+	f.Fuzz(func(t *testing.T, content string) {
+		if strings.Contains(content, "<") || strings.Contains(content, `"`) {
+			return
+		}
+
+		res := r.Body("text/xml", []byte(`<a><customer name="`+content+`"><name>`+content+`</name></customer><name>1</name></a>`))
+		if string(res.Body) != `<a><customer name="REDACTED"><name>REDACTED</name></customer><name>1</name></a>` {
+			t.Fatalf("content %q leaked: %q", content, res.Body)
+		}
+	})
+}
+
 func FuzzBody(f *testing.F) {
 	for _, s := range jsonSeeds() {
 		f.Add(s, "application/json")
@@ -113,10 +168,12 @@ func FuzzBody(f *testing.F) {
 	f.Add(`jean@example.com 0612345678 4111111111111111 FR1420041010050500013M02606`, "text/plain")
 	f.Add(`<a/>`, "text/html; charset=")
 
-	r := newRedactor(redact.WithVolatile())
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor()}
 
 	f.Fuzz(func(t *testing.T, in, contentType string) {
-		r.Body(contentType, []byte(in))
+		for _, r := range redactors {
+			r.Body(contentType, []byte(in))
+		}
 	})
 }
 
