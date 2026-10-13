@@ -710,6 +710,22 @@ func TestSinkFailureKeepsThePreview(t *testing.T) {
 	assert.NotContains(t, resp, "bodyRef")
 }
 
+func TestSinkAlwaysFailureKeepsTheBodyInline(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "application/json", `{"ok":true}`), WithBodySink(&fakeSink{err: errors.New("queue full")}), WithBodySinkAlways())
+	doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/v1/x", "", "")
+
+	lines := out.lines()
+	require.Len(t, lines, 2)
+	assert.Contains(t, lines[0], "queue full")
+
+	resp := parseEntry(t, lines[1])["response"].(map[string]any)
+	assert.Equal(t, map[string]any{"ok": true}, resp["body"])
+	assert.NotContains(t, resp, "bodyRef")
+	assert.NotContains(t, resp, "bodyTruncated")
+}
+
 func TestCaptureIsBoundedWithoutSink(t *testing.T) {
 	var out lockedBuffer
 
