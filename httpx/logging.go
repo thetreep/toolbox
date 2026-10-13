@@ -32,7 +32,7 @@ const (
 	tracerName = "github.com/thetreep/toolbox/httpx"
 )
 
-// BodySink stores a redacted body that does not fit in the log entry and returns a reference to it.
+// BodySink stores a redacted body outside the log entry and returns a reference to it.
 type BodySink interface {
 	Put(ctx context.Context, key string, body []byte) (ref string, err error)
 }
@@ -55,7 +55,7 @@ func WithBodySink(sink BodySink) LoggingOption {
 	return func(t *loggingTransport) { t.sink = sink }
 }
 
-// WithBodySinkAlways sends every non-binary body to the BodySink, not only the over-budget ones; no effect without WithBodySink.
+// WithBodySinkAlways also stores bodies that fit the budget; no effect without WithBodySink.
 func WithBodySinkAlways() LoggingOption {
 	return func(t *loggingTransport) { t.sinkAlways = true }
 }
