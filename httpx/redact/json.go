@@ -22,6 +22,7 @@ const (
 func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 	var (
 		stack   []byte
+		names   nameStack
 		state   = stValue
 		valid   = true
 		pending class
@@ -78,7 +79,7 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 			i = min(end, len(src))
 
 			if state == stKey || state == stKeyOrEnd {
-				pending = r.jsonKeyClass(content)
+				pending = r.jsonKeyClass(content, &names, suppressBase >= 0)
 				state = stColon
 
 				emit('"')
@@ -141,6 +142,10 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 
 			stack = append(stack, c)
 			if c == '{' {
+				if r.hasPaths {
+					names.push()
+				}
+
 				state = stKeyOrEnd
 			} else {
 				state = stValueOrEnd
@@ -159,6 +164,10 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 			}
 
 			if len(stack) > 0 {
+				if r.hasPaths && stack[len(stack)-1] == '{' {
+					names.pop()
+				}
+
 				stack = stack[:len(stack)-1]
 			}
 
@@ -210,19 +219,42 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 	return dst, valid
 }
 
-func (r *redactor) jsonKeyClass(raw []byte) class {
+// jsonKeyClass classifies an object key; with path rules it also records the key as the innermost name.
+func (r *redactor) jsonKeyClass(raw []byte, names *nameStack, suppressed bool) class {
+	key, ok := raw, true
+
 	for _, c := range raw {
 		if c == '\\' {
-			var key string
-			if json.Unmarshal(append(append([]byte{'"'}, raw...), '"'), &key) != nil {
-				return classSecret
+			var decoded string
+			if json.Unmarshal(append(append([]byte{'"'}, raw...), '"'), &decoded) != nil {
+				ok = false
+			} else {
+				key = []byte(decoded)
 			}
 
-			return r.keyClass([]byte(key))
+			break
 		}
 	}
 
-	return r.keyClass(raw)
+	if !r.hasPaths {
+		if !ok {
+			return classSecret
+		}
+
+		return r.keyClass(key)
+	}
+
+	if suppressed {
+		return classNone
+	}
+
+	low := names.setTop(key)
+	if !ok {
+		return classSecret
+	}
+
+	// The enclosing object keys are every level but the innermost one.
+	return r.nameClass(low, names, len(names.ends)-1)
 }
 
 func isJSONDelimiter(c byte) bool {
