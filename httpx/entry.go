@@ -226,24 +226,27 @@ func (t *loggingTransport) renderBody(ctx context.Context, key string, b loggedB
 		return renderedBody{value: b.placeholder}
 	}
 
-	if !b.captureCut && b.need() <= room {
-		if b.jsonOK {
-			return renderedBody{value: json.RawMessage(b.body)}
-		}
+	fits := !b.captureCut && b.need() <= room
+	r := renderedBody{truncated: !fits}
 
-		return renderedBody{value: string(b.body)}
-	}
-
-	r := renderedBody{truncated: true}
-
-	if t.sink != nil && len(b.body) > 0 {
+	if t.sink != nil && len(b.body) > 0 && (!fits || t.sinkAlways) {
 		ref, err := t.sink.Put(ctx, key, b.body)
 		if err != nil {
-			logger.Warn(ctx, "could not store the full HTTP body, keeping the preview only",
+			logger.Warn(ctx, "could not store the full HTTP body in the sink",
 				slog.String("error", err.Error()), slog.String("bodyKey", key))
 		} else {
 			r.ref, r.refCut = ref, b.captureCut
 		}
+	}
+
+	if fits {
+		if b.jsonOK {
+			r.value = json.RawMessage(b.body)
+		} else {
+			r.value = string(b.body)
+		}
+
+		return r
 	}
 
 	total := int64(len(b.body))
