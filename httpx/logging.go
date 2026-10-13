@@ -55,6 +55,11 @@ func WithBodySink(sink BodySink) LoggingOption {
 	return func(t *loggingTransport) { t.sink = sink }
 }
 
+// WithBodySinkAlways sends every non-binary body to the BodySink, not only the over-budget ones; no effect without WithBodySink.
+func WithBodySinkAlways() LoggingOption {
+	return func(t *loggingTransport) { t.sinkAlways = true }
+}
+
 // WithEntryBudget caps the serialized size of a log entry, in bytes.
 func WithEntryBudget(bytes int) LoggingOption {
 	return func(t *loggingTransport) { t.budget = bytes }
@@ -76,6 +81,7 @@ type loggingTransport struct {
 	parentRequestID func(ctx context.Context) string
 	userAgent       string
 	sink            BodySink
+	sinkAlways      bool
 	budget          int
 	maxCapture      int
 	now             func() time.Time

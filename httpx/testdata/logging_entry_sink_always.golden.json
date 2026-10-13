@@ -1,0 +1,53 @@
+{
+  "child-request-id": "11111111-2222-4333-8444-555555555555",
+  "duration": "125ms",
+  "durationNanoSeconds": 125000000,
+  "event": "outgoing_http_call",
+  "level": "INFO",
+  "msg": "demo POST api.example.test/v1/search -\u003e 200 (125ms)",
+  "request": {
+    "body": {
+      "origin": "Paris",
+      "password": "REDACTED"
+    },
+    "bodyRef": "fake://2026-04-21/demo/11111111-2222-4333-8444-555555555555/request",
+    "bodySize": 33,
+    "headers": {
+      "Authorization": [
+        "REDACTED"
+      ],
+      "Content-Type": [
+        "application/json"
+      ],
+      "X-Request-Id": [
+        "11111111-2222-4333-8444-555555555555"
+      ]
+    },
+    "hostname": "api.example.test",
+    "method": "POST",
+    "path": "/v1/search",
+    "query": {}
+  },
+  "response": {
+    "body": {
+      "items": [
+        {
+          "id": 1
+        }
+      ]
+    },
+    "bodyRef": "fake://2026-04-21/demo/11111111-2222-4333-8444-555555555555/response",
+    "bodySize": 20,
+    "headers": {
+      "Content-Type": [
+        "application/json"
+      ],
+      "Set-Cookie": [
+        "REDACTED"
+      ]
+    },
+    "status": "OK",
+    "statusCode": 200
+  },
+  "target-api": "demo"
+}
