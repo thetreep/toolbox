@@ -572,6 +572,93 @@ func TestCompleteBodyRefIsNotFlaggedPartial(t *testing.T) {
 	assert.NotContains(t, resp, "bodyRefPartial")
 }
 
+func TestSinkAlwaysStoresSmallBodiesAndKeepsThemInline(t *testing.T) {
+	var out lockedBuffer
+
+	sink := &fakeSink{}
+	tr := newTestTransport(cannedResponse(200, "application/json", `{"items":[{"id":1}]}`), WithBodySink(sink), WithBodySinkAlways())
+
+	doRequest(t, tr, &out, http.MethodPost, "https://api.example.test/v1/search", "application/json", `{"origin":"Paris","password":"p"}`)
+
+	lines := out.lines()
+	require.Len(t, lines, 1)
+	assertGolden(t, "testdata/logging_entry_sink_always.golden.json", lines[0])
+
+	entry := parseEntry(t, lines[0])
+	for _, side := range []string{"request", "response"} {
+		part := entry[side].(map[string]any)
+		assert.Contains(t, part, "bodyRef", side)
+		assert.NotContains(t, part, "bodyRefPartial", side)
+		assert.NotContains(t, part, "bodyTruncated", side)
+	}
+
+	require.Len(t, sink.puts, 2)
+	assert.JSONEq(t, `{"origin":"Paris","password":"REDACTED"}`, string(sink.puts["2026-04-21/demo/11111111-2222-4333-8444-555555555555/request"]))
+}
+
+func TestSinkAlwaysKeepsThePreviewForOversizeBodies(t *testing.T) {
+	var out lockedBuffer
+
+	sink := &fakeSink{}
+	tr := newTestTransport(cannedResponse(200, "application/json", bigJSON(20000)), WithBodySink(sink), WithBodySinkAlways())
+
+	doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/big", "", "")
+
+	resp := parseEntry(t, out.lines()[0])["response"].(map[string]any)
+	assert.Contains(t, resp, "bodyRef")
+	assert.Equal(t, true, resp["bodyTruncated"])
+	assert.IsType(t, "", resp["body"], "over-budget bodies are logged as a preview")
+	assert.Len(t, sink.puts, 1, "an empty request body is never stored")
+}
+
+func TestSinkAlwaysSkipsBinaryBodies(t *testing.T) {
+	var out lockedBuffer
+
+	sink := &fakeSink{}
+	pdf := "%PDF-1.7\x00\x01\x02" + strings.Repeat("\xff", 1000)
+	tr := newTestTransport(cannedResponse(200, "application/pdf", pdf), WithBodySink(sink), WithBodySinkAlways())
+
+	doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/ticket.pdf", "", "")
+
+	resp := parseEntry(t, out.lines()[0])["response"].(map[string]any)
+	assert.NotContains(t, resp, "bodyRef")
+	assert.Empty(t, sink.puts)
+}
+
+func TestSinkAlwaysFlagsCutCaptureAsPartial(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "application/json", bigJSON(20000)), WithBodySink(&fakeSink{}), WithBodySinkAlways(), WithMaxCapture(32))
+
+	doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/big", "", "")
+
+	resp := parseEntry(t, out.lines()[0])["response"].(map[string]any)
+	assert.Equal(t, true, resp["bodyRefPartial"])
+}
+
+func TestSmallBodiesAreNotStoredByDefault(t *testing.T) {
+	var out lockedBuffer
+
+	sink := &fakeSink{}
+	tr := newTestTransport(cannedResponse(200, "application/json", `{"ok":true}`), WithBodySink(sink))
+
+	doRequest(t, tr, &out, http.MethodPost, "https://api.example.test/v1/x", "application/json", `{"a":1}`)
+
+	entry := parseEntry(t, out.lines()[0])
+	assert.NotContains(t, entry["response"], "bodyRef")
+	assert.NotContains(t, entry["request"], "bodyRef")
+	assert.Empty(t, sink.puts)
+}
+
+func TestSinkAlwaysWithoutSinkIsInert(t *testing.T) {
+	var out lockedBuffer
+
+	tr := newTestTransport(cannedResponse(200, "application/json", `{"ok":true}`), WithBodySinkAlways())
+	doRequest(t, tr, &out, http.MethodGet, "https://api.example.test/v1/x", "", "")
+
+	assert.NotContains(t, parseEntry(t, out.lines()[0])["response"], "bodyRef")
+}
+
 func TestQueryAndCookiesAreRedactedInTheEntry(t *testing.T) {
 	var out lockedBuffer
 
