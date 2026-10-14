@@ -16,6 +16,7 @@ La v1 vivait dans un seul service et avait trois défauts :
 - `LoggingTransport` : ne mute jamais la requête, capture la réponse en streaming (borné), log à la fermeture du body. `duration` mesure le temps jusqu'aux headers de réponse, pas la lecture du body par l'appelant. Le budget est calculé sur l'entrée sérialisée, JSON valide loggé comme objet, sinon preview tronquée sur une frontière de rune. Le schéma du log reste compatible avec la v1.
 - `bodysink` : au-delà du budget, le body complet (redacté) part dans GCS en async, le log garde la preview et `bodyRef` (`bodyRefPartial: true` si la capture a été coupée avant d'être envoyée au sink). `WithBodySinkAlways` envoie tous les bodies non binaires au sink, pas seulement ceux qui dépassent le budget (JSON brut plus simple à copier que l'UI Cloud Logging) : le body reste loggé inline quand il tient, avec `bodyRef` en plus.
 - `httpretry` : opt-in, séparé. Rejoue seulement GET/HEAD/OPTIONS/PUT/DELETE ou une requête avec `Idempotency-Key` (garde-fou toujours actif, `WithShouldRetry` choisit seulement quels échecs rejouer), respecte `Retry-After`.
+  - `WithIdempotent` déclare d'autres requêtes rejouables (ex. un POST de token OAuth).
 - `httpvcr` : toujours go-vcr v4 et les mêmes cassettes `.k7.yaml`. La cassette est redactée à l'enregistrement, le matcher compare des copies normalisées.
 
 ## Usage
