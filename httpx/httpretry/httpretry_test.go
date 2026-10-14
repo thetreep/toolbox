@@ -315,6 +315,54 @@ func TestCustomPolicyCannotBypassTheIdempotencyGuard(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode, "an Idempotency-Key makes the request eligible")
 }
 
+func TestDeclaredIdempotentPostIsRetriedWithItsBody(t *testing.T) {
+	isToken := WithIdempotent(func(req *http.Request) bool { return req.URL.Path == "/oauth/token" })
+
+	base := &script{steps: []step{{status: 503}, {status: 200}}}
+	tr, _ := newTestTransport(base, isToken)
+
+	req, err := http.NewRequest(http.MethodPost, "https://auth.example.test/oauth/token", strings.NewReader("grant_type=client_credentials"))
+	require.NoError(t, err)
+
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	require.Len(t, base.calls, 2)
+	assert.Equal(t, "grant_type=client_credentials", base.calls[0].body)
+	assert.Equal(t, "grant_type=client_credentials", base.calls[1].body)
+
+	base = &script{steps: []step{{status: 503}, {status: 200}}}
+	tr, slept := newTestTransport(base, isToken)
+
+	resp, err = do(t, tr, "POST", `{"book":true}`)
+	require.NoError(t, err)
+	assert.Equal(t, 503, resp.StatusCode, "a POST the predicate rejects is still sent once")
+	assert.Len(t, base.calls, 1)
+	assert.Empty(t, *slept)
+}
+
+func TestDeclaredIdempotentStillGoesThroughTheFailurePolicy(t *testing.T) {
+	base := &script{steps: []step{{status: 409}, {status: 200}}}
+	tr, _ := newTestTransport(base, WithIdempotent(func(*http.Request) bool { return true }))
+
+	resp, err := do(t, tr, "POST", `{"book":true}`)
+	require.NoError(t, err)
+	assert.Equal(t, 409, resp.StatusCode, "WithIdempotent does not widen which failures are retried")
+	assert.Len(t, base.calls, 1)
+}
+
+func TestDeclaredIdempotentIsNotAskedAboutIdempotentRequests(t *testing.T) {
+	base := &script{steps: []step{{status: 503}, {status: 200}}}
+	tr, _ := newTestTransport(base, WithIdempotent(func(*http.Request) bool {
+		t.Error("the predicate must not be consulted for an already idempotent request")
+		return false
+	}))
+
+	resp, err := do(t, tr, "GET", "")
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+}
+
 func TestNonIdempotentRequestSkipsPolicyAndBuffering(t *testing.T) {
 	base := &script{steps: []step{{status: 503}}}
 	tr, _ := newTestTransport(base, WithShouldRetry(func(*http.Request, *http.Response, error) bool {

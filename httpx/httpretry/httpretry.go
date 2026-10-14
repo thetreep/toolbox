@@ -40,9 +40,14 @@ func WithBackoff(initial, maxDelay time.Duration) Option {
 	return func(t *transport) { t.initialDelay, t.maxDelay = max(initial, 0), max(maxDelay, 0) }
 }
 
-// WithShouldRetry replaces DefaultShouldRetry; it is only asked about requests that pass IsIdempotent.
+// WithShouldRetry replaces DefaultShouldRetry; it is only asked about idempotent requests (see IsIdempotent and WithIdempotent).
 func WithShouldRetry(fn ShouldRetry) Option {
 	return func(t *transport) { t.shouldRetry = fn }
+}
+
+// WithIdempotent declares the requests fn accepts safe to replay, on top of IsIdempotent (e.g. an OAuth client-credentials token POST); it is not asked about requests IsIdempotent already accepts.
+func WithIdempotent(fn func(*http.Request) bool) Option {
+	return func(t *transport) { t.idempotent = fn }
 }
 
 // WithMaxBufferedBody bounds the body buffered to rewind requests without GetBody (default 10 MiB).
@@ -59,6 +64,7 @@ type transport struct {
 	maxDelay     time.Duration
 	maxBuffered  int
 	shouldRetry  ShouldRetry
+	idempotent   func(*http.Request) bool
 
 	now    func() time.Time
 	sleep  func(ctx context.Context, d time.Duration) error
@@ -126,7 +132,7 @@ func retryableError(ctx context.Context, err error) bool {
 
 // RoundTrip implements http.RoundTripper.
 func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if t.maxTries == 1 || !IsIdempotent(req) {
+	if t.maxTries == 1 || !t.replayable(req) {
 		return t.base.RoundTrip(req)
 	}
 
@@ -177,6 +183,10 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, sleepErr
 		}
 	}
+}
+
+func (t *transport) replayable(req *http.Request) bool {
+	return IsIdempotent(req) || (t.idempotent != nil && t.idempotent(req))
 }
 
 // rewindable returns req, or a clone with a replayable body when the original cannot be re-read.
