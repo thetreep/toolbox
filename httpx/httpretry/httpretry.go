@@ -45,7 +45,7 @@ func WithShouldRetry(fn ShouldRetry) Option {
 	return func(t *transport) { t.shouldRetry = fn }
 }
 
-// WithIdempotent declares the requests fn accepts safe to replay, on top of IsIdempotent (e.g. an OAuth client-credentials token POST); it is not asked about requests IsIdempotent already accepts.
+// WithIdempotent declares the requests fn accepts safe to replay on top of IsIdempotent (e.g. an OAuth token POST); fn must not read the body.
 func WithIdempotent(fn func(*http.Request) bool) Option {
 	return func(t *transport) { t.idempotent = fn }
 }
