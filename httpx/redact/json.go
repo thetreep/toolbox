@@ -44,6 +44,13 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 			return true
 		}
 
+		if pending == classEmbedded {
+			// Only reached by a container, which is redacted in place; a string or scalar is handled before.
+			pending = classNone
+
+			return false
+		}
+
 		if pending == classNone {
 			return false
 		}
@@ -97,6 +104,13 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 
 			seenValue = true
 			state = stAfter
+
+			if pending == classEmbedded && suppressBase < 0 {
+				pending = classNone
+				dst = r.jsonEmbedded(dst, content, wellFormed)
+
+				continue
+			}
 
 			if beginValue() {
 				continue
@@ -199,6 +213,11 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 
 			seenValue = true
 			state = stAfter
+
+			// A scalar other than null is no document: mask it.
+			if pending == classEmbedded && string(token) != "null" {
+				pending = classSecret
+			}
 
 			if beginValue() {
 				continue

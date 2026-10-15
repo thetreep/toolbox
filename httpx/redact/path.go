@@ -32,7 +32,7 @@ func parsePath(key string) (parents []string, last string, anchored, isPath bool
 func (r *redactor) addPath(parents []string, last string, anchored bool, c class) {
 	for i, existing := range r.paths[last] {
 		if existing.anchored == anchored && strings.Join(existing.parents, ".") == strings.Join(parents, ".") {
-			if existing.class != classSecret {
+			if c > existing.class {
 				r.paths[last][i].class = c
 			}
 
@@ -137,7 +137,7 @@ func (r *redactor) nameClass(low []byte, names *nameStack, n int, xml bool) clas
 			break
 		}
 
-		if names.matches(n, &rules[i], xml) {
+		if rules[i].class > c && names.matches(n, &rules[i], xml) {
 			c = rules[i].class
 		}
 	}
