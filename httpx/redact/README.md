@@ -21,3 +21,13 @@ Les règles `Volatile` ont la même sémantique. Les query params, champs de for
 ## Sans PII
 
 `redact.WithoutPII()` ignore les règles `PII` et les détecteurs email, téléphone, PAN et IBAN ; les secrets (règles `Secrets`, JWT, Bearer, Basic) restent redactés, et `Volatile` reste actif avec `WithVolatile()`. Prévu pour les cassettes, qui ne doivent pas fuiter de secrets mais peuvent contenir de fausses PII.
+
+## Documents embarqués
+
+Certaines API portent un document entier dans une valeur string (un élément SOAP dont le texte est du XML échappé en entités, ou une string JSON contenant du JSON). `Policy.Embedded` liste les clés (même matching que `Rules.Keys`, chemins compris) dont la valeur est redactée comme un document imbriqué avec la même policy, plutôt que masquée : la valeur est décodée (entités et CDATA en XML, échappements en JSON), le format est détecté (`<` pour XML, `{` ou `[` pour JSON), puis le document est redacté et ré-échappé, sur 3 niveaux d'imbrication au plus. Tout ce qui n'est pas un document bien formé (texte, JSON ou XML invalide, entité inconnue, niveau 4, attribut XML, élément avec des enfants ou un commentaire, scalaire non null) est masqué en entier : fail closed. Une valeur vide ou `null` est conservée, et un objet ou tableau JSON déjà structuré est redacté en place. Les règles `Secrets` et `PII` gagnent si la même clé y figure, `Volatile` aussi avec `WithVolatile()`. `WithoutPII()` s'applique au document imbriqué.
+
+```go
+redact.Policy{PII: redact.Rules{Keys: []string{"lastName"}}, Embedded: []string{"fileContent"}}
+// <r><fileContent>&lt;o&gt;&lt;lastName&gt;Dupont&lt;/lastName&gt;&lt;ref&gt;A1&lt;/ref&gt;&lt;/o&gt;</fileContent></r>
+// -> <r><fileContent>&lt;o&gt;&lt;lastName&gt;REDACTED&lt;/lastName&gt;&lt;ref&gt;A1&lt;/ref&gt;&lt;/o&gt;</fileContent></r>
+```
