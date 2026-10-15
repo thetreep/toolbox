@@ -147,19 +147,23 @@ func (r *redactor) nameClass(low []byte, names *nameStack, n int, xml bool) clas
 
 // xmlNameClass classifies an element or attribute name; the names stack holds the open elements, the owner element included for attributes.
 func (r *redactor) xmlNameClass(name []byte, names *nameStack) class {
+	local := localName(name)
+
 	if !r.hasPaths {
-		if c := r.keyClass(name); c != classNone {
-			return c
+		c := r.keyClass(name)
+		if len(local) < len(name) {
+			c = max(c, r.keyClass(local))
 		}
 
-		return r.keyClass(localName(name))
-	}
-
-	if c := r.lowerNameClass(name, names); c != classNone {
 		return c
 	}
 
-	return r.lowerNameClass(localName(name), names)
+	c := r.lowerNameClass(name, names)
+	if len(local) < len(name) {
+		c = max(c, r.lowerNameClass(local, names))
+	}
+
+	return c
 }
 
 func (r *redactor) lowerNameClass(name []byte, names *nameStack) class {
