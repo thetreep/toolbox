@@ -280,7 +280,7 @@ func (r *redactor) RawQuery(raw string) string {
 
 // Text runs the detectors on arbitrary text.
 func (r *redactor) Text(s string) string {
-	out, found := r.scan(nil, []byte(s), false, true)
+	out, found := r.scan(nil, []byte(s), false)
 	if found == 0 {
 		return s
 	}

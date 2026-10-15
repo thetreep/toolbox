@@ -42,7 +42,7 @@ func (r *redactor) Body(contentType string, body []byte) Result {
 
 		// Invalid (truncated, HTML error page…): keep whitespace so detectors also see values split across tokens.
 		keyed, _ := r.json(make([]byte, 0, len(body)+len(body)/8), body, false)
-		out, _ = r.scan(make([]byte, 0, len(keyed)), keyed, false, true)
+		out, _ = r.scan(make([]byte, 0, len(keyed)), keyed, false)
 
 		if declared {
 			return Result{Body: out, Kind: KindJSON}
@@ -55,7 +55,7 @@ func (r *redactor) Body(contentType string, body []byte) Result {
 		return Result{Body: r.form(make([]byte, 0, len(body)), body), Kind: KindForm}
 	}
 
-	out, _ := r.scan(make([]byte, 0, len(body)), body, false, true)
+	out, _ := r.scan(make([]byte, 0, len(body)), body, false)
 
 	return Result{Body: out, Kind: KindText}
 }
