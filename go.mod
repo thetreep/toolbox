@@ -23,6 +23,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.24.0
 	go.opentelemetry.io/otel/trace v1.24.0
 	golang.org/x/text v0.19.0
+	gopkg.in/dnaeon/go-vcr.v4 v4.0.4
 	gopkg.in/yaml.v3 v3.0.1
 )
 
