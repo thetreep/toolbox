@@ -21,8 +21,7 @@ type Rules struct {
 	Keys        []string
 }
 
-// Policy classifies what must be redacted; Secrets and PII are always redacted, Volatile only when asked for.
-// Embedded lists keys (same matching as Rules.Keys) whose string value is a whole JSON or XML document, redacted with this policy instead of masked; see README.md.
+// Policy classifies what must be redacted: Secrets always, PII unless WithoutPII, Volatile only with WithVolatile, Embedded documents recursively (see README.md).
 type Policy struct {
 	Secrets  Rules
 	PII      Rules
@@ -101,8 +100,7 @@ type redactor struct {
 	maxKeyLen   int
 	hasPaths    bool
 	detectors   detectorSet
-	// nest is how many embedded documents deep this view of the redactor is.
-	nest int
+	nest        int
 }
 
 // Option customizes New.
@@ -197,6 +195,9 @@ func New(p Policy, opts ...Option) Redactor {
 
 		add(r.keys, []string{key}, classEmbedded)
 	}
+
+	// Form values are masked whole: there is no nested-document redaction for them.
+	add(r.formKeys, p.Embedded, classEmbedded)
 
 	for name := range r.keys {
 		r.maxKeyLen = max(r.maxKeyLen, len(name))
