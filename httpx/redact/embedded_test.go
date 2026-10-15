@@ -2,6 +2,7 @@ package redact_test
 
 import (
 	"encoding/json"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -285,4 +286,96 @@ func TestEmbeddedMerge(t *testing.T) {
 func TestEmbeddedPlainPoliciesUntouched(t *testing.T) {
 	res := newRedactor().Body("application/json", []byte(`{"payload":"{\"password\":\"p\"}"}`))
 	assert.JSONEq(t, `{"payload":"{\"password\":\"p\"}"}`, string(res.Body))
+}
+
+func xmlEscape(s string) string {
+	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(s)
+}
+
+func TestEmbeddedFormMasked(t *testing.T) {
+	r := newEmbedded()
+
+	res := r.Body("application/x-www-form-urlencoded", []byte("fileContent=%7B%22lastName%22%3A%22Dupont%22%7D&ref=A1"))
+	assert.Equal(t, "fileContent=REDACTED&ref=A1", string(res.Body))
+
+	got := r.Form(url.Values{"fileContent": {`{"lastName":"Dupont"}`}, "ref": {"A1"}})
+	assert.Equal(t, url.Values{"fileContent": {"REDACTED"}, "ref": {"A1"}}, got)
+}
+
+func TestEmbeddedXMLPrecedence(t *testing.T) {
+	doc := xmlEscape(`<o><lastName>Dupont</lastName></o>`)
+
+	t.Run("secret wins", func(t *testing.T) {
+		r := redact.New(redact.Policy{Secrets: redact.Rules{Keys: []string{"payload"}}, Embedded: []string{"payload"}})
+		assert.Equal(t, `<r><payload>REDACTED</payload></r>`, string(r.Body("application/xml", []byte(`<r><payload>`+doc+`</payload></r>`)).Body))
+	})
+
+	t.Run("volatile wins when enabled", func(t *testing.T) {
+		r := redact.New(redact.Policy{Volatile: redact.Rules{Keys: []string{"payload"}}, Embedded: []string{"payload"}}, redact.WithVolatile())
+		assert.Equal(t, `<r><payload>`+redact.VolatilePlaceholder+`</payload></r>`, string(r.Body("application/xml", []byte(`<r><payload>`+doc+`</payload></r>`)).Body))
+	})
+
+	t.Run("secret local name wins over prefixed embedded name", func(t *testing.T) {
+		r := redact.New(redact.Policy{Secrets: redact.Rules{Keys: []string{"payload"}}, Embedded: []string{"ns:payload"}})
+		assert.Equal(t, `<r><ns:payload>REDACTED</ns:payload></r>`, string(r.Body("application/xml", []byte(`<r><ns:payload>`+doc+`</ns:payload></r>`)).Body))
+	})
+
+	t.Run("secret ancestor masks the embedded element", func(t *testing.T) {
+		r := redact.New(redact.Policy{Secrets: redact.Rules{Keys: []string{"password"}}, Embedded: []string{"payload"}})
+		got := string(r.Body("application/xml", []byte(`<r><password><payload>`+doc+`</payload></password></r>`)).Body)
+		assert.NotContains(t, got, "Dupont")
+		assert.NotContains(t, got, "lastName")
+	})
+}
+
+func TestEmbeddedDepthAcrossFormats(t *testing.T) {
+	leaf := `<o><lastName>Dupont</lastName><city>Lyon</city></o>`
+
+	t.Run("xml in xml", func(t *testing.T) {
+		wrap := func(levels int) string {
+			doc := leaf
+			for range levels {
+				doc = `<w><payload>` + xmlEscape(doc) + `</payload></w>`
+			}
+
+			return doc
+		}
+
+		got := string(newEmbedded().Body("application/xml", []byte(wrap(3))).Body)
+		assert.NotContains(t, got, "Dupont")
+		assert.Contains(t, got, "Lyon")
+
+		got = string(newEmbedded().Body("application/xml", []byte(wrap(4))).Body)
+		assert.NotContains(t, got, "Dupont")
+		assert.NotContains(t, got, "Lyon")
+	})
+
+	t.Run("json xml json chain", func(t *testing.T) {
+		inner := `{"lastName":"Dupont","city":"Lyon"}`
+		mid := `<w><payload>` + xmlEscape(inner) + `</payload></w>`
+		in := `{"payload":` + jsonString(mid) + `}`
+
+		got := string(newEmbedded().Body("application/json", []byte(in)).Body)
+		assert.NotContains(t, got, "Dupont")
+		assert.Contains(t, got, "Lyon")
+	})
+}
+
+func TestEmbeddedJSONEscapes(t *testing.T) {
+	inner := `<o><lastName>Dupont</lastName><city>Zürich "q" 😀</city></o>`
+	raw, err := json.Marshal(map[string]string{"payload": inner})
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `\u003c`)
+
+	res := newEmbedded().Body("application/json", raw)
+	require.True(t, res.ValidJSON)
+
+	var got map[string]string
+	require.NoError(t, json.Unmarshal(res.Body, &got))
+	assert.Equal(t, `<o><lastName>REDACTED</lastName><city>Zürich "q" 😀</city></o>`, got["payload"])
+
+	res = newEmbedded().Body("application/json", []byte(`{"payload":" {\"lastName\":\"Dupont\",\"e\":\"\\ud83d\\ude00\"} "}`))
+	require.NoError(t, json.Unmarshal(res.Body, &got))
+	assert.NotContains(t, got["payload"], "Dupont")
+	assert.Contains(t, got["payload"], `"lastName":"REDACTED"`)
 }
