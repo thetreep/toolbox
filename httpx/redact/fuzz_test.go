@@ -1,7 +1,9 @@
 package redact_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"encoding/xml"
 	"strings"
 	"testing"
 
@@ -12,6 +14,14 @@ func fuzzPathRedactor() redact.Redactor {
 	return redact.New(redact.Policy{
 		Secrets:  redact.Rules{Keys: []string{"customer.name", "$.pin", "a.b.c", "s:driver.id"}},
 		Volatile: redact.Rules{Keys: []string{"driver.seat", "$.nonce"}},
+	}, redact.WithVolatile())
+}
+
+func fuzzEmbeddedRedactor() redact.Redactor {
+	return redact.New(redact.Policy{
+		PII:      redact.Rules{Keys: []string{"lastName", "customer.name"}},
+		Volatile: redact.Rules{Keys: []string{"nonce"}},
+		Embedded: []string{"payload", "$.wrapper.doc", "customer.doc"},
 	}, redact.WithVolatile())
 }
 
@@ -29,6 +39,9 @@ func jsonSeeds() []string {
 		`{"customer":{"name":"x"},"pin":1}`, `[{"customer":[{"name":"x"}],"pin":1}]`, `{"a":{"b":{"c":[1,{"c":2}]}}}`,
 		`{"cust` + b + `u006fmer":{"name":"x"}}`, `{"customer":{"name":"x"`, `{"customer":[}{"name":"x"}`, `}]{"customer":{"name":1}}`,
 		`{"driver":{"seat":{"a":[1]}},"nonce":"n"}`, strings.Repeat(`{"customer":`, 2000),
+		`{"payload":"{` + b + `"lastName` + b + `":` + b + `"x` + b + `"}"}`, `{"payload":"<a><lastName>x</lastName></a>"}`, `{"payload":"{` + b + `"payload` + b + `":` + b + `"{}` + b + `"}"}`,
+		`{"payload":"{` + b + `"a` + b + `":"`, `{"payload":"` + b + `u0000"}`, `{"payload":12}`, `{"payload":{"lastName":1}}`, `{"payload":null}`,
+		`{"wrapper":{"doc":"[1,{` + b + `"lastName` + b + `":2}]"}}`, `{"customer":[{"doc":"<a b=` + b + `"c` + b + `"/>"}]}`, strings.Repeat(`{"payload":`, 2000),
 	}
 }
 
@@ -37,7 +50,7 @@ func FuzzJSON(f *testing.F) {
 		f.Add(s)
 	}
 
-	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile())}
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile()), fuzzEmbeddedRedactor()}
 
 	f.Fuzz(func(t *testing.T, in string) {
 		for _, r := range redactors {
@@ -103,14 +116,16 @@ func FuzzXML(f *testing.F) {
 	for _, s := range []string{
 		``, `<a/>`, `<a><token>x</token></a>`, `<a password="x" b='y'>t</a>`, `<![CDATA[x]]>`, `<!-- c -->`, `<?xml version="1.0"?>`,
 		`<s:E xmlns:s="u"><ns:secret>p</ns:secret></s:E>`, `<a b=`, `<a b="`, `<token>x`, `</`, `<`, `<!DOCTYPE a [<!ENTITY x "y">]>`,
-		strings.Repeat("<a>", 5000), `<a mail="jean@example.com">06 12 34 56 78</a>`, "<a>\xff</a>", `<a b=c d=e>`,
+		`<payload>&lt;a&gt;&lt;lastName&gt;x&lt;/lastName&gt;&lt;/a&gt;</payload>`, `<payload><![CDATA[{"lastName":"x"}]]></payload>`, `<payload>&lt;payload&gt;&amp;lt;a/&amp;gt;&lt;/payload&gt;</payload>`,
+		`<payload>&#60;a/&#62;</payload>`, `<payload>&#0;</payload>`, `<payload>&`, `<payload><![CDATA[`, `<payload><b/></payload>`, `<wrapper><doc>{}</doc></wrapper>`, `<customer><doc>&lt;a&gt;</doc></customer>`,
+		strings.Repeat("<payload>&lt;", 2000), strings.Repeat("<a>", 5000), `<a mail="jean@example.com">06 12 34 56 78</a>`, "<a>\xff</a>", `<a b=c d=e>`,
 		`<customer name="x"><name>y</name></customer>`, `<a><customer><name>x</name></customer></a>`, `</a></a><customer name='x'/>`,
 		`<driver seat="1"><seat>2</seat></driver>`, `<nonce>n</nonce>`, `<s:driver id="1"><s:id>2</s:id></s:driver>`, `<customer name=`, strings.Repeat("<customer>", 2000),
 	} {
 		f.Add(s)
 	}
 
-	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile())}
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile()), fuzzEmbeddedRedactor()}
 
 	f.Fuzz(func(t *testing.T, in string) {
 		for _, r := range redactors {
@@ -168,7 +183,7 @@ func FuzzBody(f *testing.F) {
 	f.Add(`jean@example.com 0612345678 4111111111111111 FR1420041010050500013M02606`, "text/plain")
 	f.Add(`<a/>`, "text/html; charset=")
 
-	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile())}
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile()), fuzzEmbeddedRedactor()}
 
 	f.Fuzz(func(t *testing.T, in, contentType string) {
 		for _, r := range redactors {
@@ -203,6 +218,67 @@ func FuzzDetectors(f *testing.F) {
 			if strings.Contains(got, "[REDACTED:"+class+"]") {
 				t.Fatalf("WithoutPII applied the %s detector: %q -> %q", class, in, got)
 			}
+		}
+	})
+}
+
+func FuzzEmbeddedJSONValue(f *testing.F) {
+	f.Add(`secret`)
+	f.Add(`a "quoted" \ value` + "\n\t")
+	f.Add(`</payload> jean@example.com <![CDATA[`)
+
+	r := fuzzEmbeddedRedactor()
+
+	f.Fuzz(func(t *testing.T, value string) {
+		inner, _ := json.Marshal(map[string]any{"lastName": value, "n": 1})
+		outer, _ := json.Marshal(map[string]any{"payload": string(inner)})
+
+		res := r.Body("application/json", outer)
+		if !res.ValidJSON || !json.Valid(res.Body) {
+			t.Fatalf("invalid output %q for %q", res.Body, outer)
+		}
+
+		var got struct{ Payload string }
+		if err := json.Unmarshal(res.Body, &got); err != nil {
+			t.Fatalf("payload is no string in %q: %v", res.Body, err)
+		}
+
+		if got.Payload != `{"lastName":"REDACTED","n":1}` {
+			t.Fatalf("value %q leaked: %q", value, got.Payload)
+		}
+	})
+}
+
+func FuzzEmbeddedXMLContent(f *testing.F) {
+	f.Add(`secret`)
+	f.Add(`a & b <c> jean@example.com ]]>`)
+	f.Add("\x00\xff")
+
+	r := fuzzEmbeddedRedactor()
+
+	f.Fuzz(func(t *testing.T, content string) {
+		var inner, outer bytes.Buffer
+
+		inner.WriteString(`<a><lastName>`)
+		_ = xml.EscapeText(&inner, []byte(content))
+		inner.WriteString(`</lastName><n>1</n></a>`)
+
+		outer.WriteString(`<e><payload>`)
+		_ = xml.EscapeText(&outer, inner.Bytes())
+		outer.WriteString(`</payload></e>`)
+
+		res := r.Body("text/xml", outer.Bytes())
+
+		var got struct {
+			Payload string `xml:"payload"`
+		}
+
+		if err := xml.Unmarshal(res.Body, &got); err != nil {
+			t.Fatalf("invalid output %q for %q: %v", res.Body, outer.Bytes(), err)
+		}
+
+		if got.Payload != `<a><lastName>REDACTED</lastName><n>1</n></a>` {
+			t.Fatalf("content %q leaked: %q", content, got.Payload)
 		}
 	})
 }
