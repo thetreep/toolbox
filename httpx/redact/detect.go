@@ -32,7 +32,9 @@ const (
 
 type detectorSet uint16
 
-func setOf(ds ...detector) (s detectorSet) {
+func setOf(ds ...detector) detectorSet {
+	var s detectorSet
+
 	for _, d := range ds {
 		s |= 1 << d
 	}
