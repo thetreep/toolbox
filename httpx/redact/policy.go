@@ -22,10 +22,12 @@ type Rules struct {
 }
 
 // Policy classifies what must be redacted; Secrets and PII are always redacted, Volatile only when asked for.
+// Embedded lists keys (same matching as Rules.Keys) whose string value is a whole JSON or XML document, redacted with this policy instead of masked; see README.md.
 type Policy struct {
 	Secrets  Rules
 	PII      Rules
 	Volatile Rules
+	Embedded []string
 }
 
 // Merge appends policies in order; nothing is ever removed.
@@ -36,6 +38,7 @@ func Merge(policies ...Policy) Policy {
 		out.Secrets = mergeRules(out.Secrets, p.Secrets)
 		out.PII = mergeRules(out.PII, p.PII)
 		out.Volatile = mergeRules(out.Volatile, p.Volatile)
+		out.Embedded = append(out.Embedded, p.Embedded...)
 	}
 
 	return out
@@ -68,12 +71,14 @@ func Default() Policy {
 	}
 }
 
+// class is ordered by precedence: a stronger class is never replaced by a weaker one.
 type class uint8
 
 const (
 	classNone class = iota
-	classSecret
+	classEmbedded
 	classVolatile
+	classSecret
 )
 
 func (c class) placeholder() string {
@@ -96,6 +101,8 @@ type redactor struct {
 	maxKeyLen   int
 	hasPaths    bool
 	detectors   detectorSet
+	// nest is how many embedded documents deep this view of the redactor is.
+	nest int
 }
 
 // Option customizes New.
@@ -137,7 +144,7 @@ func New(p Policy, opts ...Option) Redactor {
 				continue
 			}
 
-			if m[name] != classSecret {
+			if c > m[name] {
 				m[name] = c
 			}
 		}
@@ -162,7 +169,7 @@ func New(p Policy, opts ...Option) Redactor {
 	}
 
 	// Keys are checked even when not compiled, so a malformed one surfaces whatever the options.
-	for _, key := range append(append([]string(nil), p.Volatile.Keys...), p.PII.Keys...) {
+	for _, key := range append(append(append([]string(nil), p.Volatile.Keys...), p.PII.Keys...), p.Embedded...) {
 		parsePath(key)
 	}
 
@@ -181,6 +188,14 @@ func New(p Policy, opts ...Option) Redactor {
 
 		add(r.formKeys, rs.rules.QueryParams, rs.class)
 		add(r.formKeys, rs.rules.Keys, rs.class)
+	}
+
+	for _, key := range p.Embedded {
+		if parents, last, anchored, isPath := parsePath(key); isPath {
+			r.addPath(parents, last, anchored, classEmbedded)
+		}
+
+		add(r.keys, []string{key}, classEmbedded)
 	}
 
 	for name := range r.keys {

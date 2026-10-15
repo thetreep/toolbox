@@ -174,6 +174,12 @@ tagEnd:
 	}
 
 	if !suppressed && elementClass != classNone {
+		if elementClass == classEmbedded {
+			if end, ok := r.xmlEmbedded(dst, src, j); ok {
+				return end, depth + 1, suppressBase
+			}
+		}
+
 		*dst = append(*dst, elementClass.placeholder()...)
 		suppressBase = depth
 	}
