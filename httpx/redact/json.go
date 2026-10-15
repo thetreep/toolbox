@@ -103,7 +103,7 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 			}
 
 			dst = append(dst, '"')
-			dst, _ = scan(dst, content, true, true)
+			dst, _ = r.scan(dst, content, true, true)
 			dst = append(dst, '"')
 		case ':':
 			if state != stColon {
@@ -207,7 +207,7 @@ func (r *redactor) json(dst, src []byte, compact bool) ([]byte, bool) {
 			if validJSONLiteral(token) {
 				dst = append(dst, token...)
 			} else {
-				dst, _ = scan(dst, token, false, true)
+				dst, _ = r.scan(dst, token, false, true)
 			}
 		}
 	}

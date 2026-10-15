@@ -17,7 +17,7 @@ func (r *redactor) xml(dst, src []byte) []byte {
 
 	text := func(b []byte) {
 		if suppressBase < 0 {
-			dst, _ = scan(dst, b, false, true)
+			dst, _ = r.scan(dst, b, false, true)
 		}
 	}
 
@@ -100,7 +100,7 @@ func (r *redactor) xmlSpan(dst *[]byte, src []byte, i int, open, closing string,
 
 	if !suppressed {
 		*dst = append(*dst, open...)
-		*dst, _ = scan(*dst, src[body:body+end], false, true)
+		*dst, _ = r.scan(*dst, src[body:body+end], false, true)
 		*dst = append(*dst, closing...)
 	}
 
@@ -256,7 +256,7 @@ func (r *redactor) xmlAttribute(dst *[]byte, names *nameStack, src []byte, j int
 		if matched != classNone {
 			*dst = append(*dst, matched.placeholder()...)
 		} else {
-			*dst, _ = scan(*dst, src[valueStart:valueEnd], false, true)
+			*dst, _ = r.scan(*dst, src[valueStart:valueEnd], false, true)
 		}
 
 		if (quote == '"' || quote == '\'') && next > valueEnd {
@@ -293,7 +293,7 @@ func (r *redactor) form(dst, src []byte) []byte {
 func (r *redactor) formPair(dst, pair []byte) []byte {
 	eq := bytes.IndexByte(pair, '=')
 	if eq < 0 {
-		out, _ := scan(dst, pair, false, true)
+		out, _ := r.scan(dst, pair, false, true)
 
 		return out
 	}
@@ -317,7 +317,7 @@ func (r *redactor) formPair(dst, pair []byte) []byte {
 		decodedValue = string(value)
 	}
 
-	if out, found := scan(nil, []byte(decodedValue), false, true); found != 0 {
+	if out, found := r.scan(nil, []byte(decodedValue), false, true); found != 0 {
 		return append(dst, url.QueryEscape(string(out))...)
 	}
 
