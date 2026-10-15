@@ -58,7 +58,7 @@ func (f *flaky) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.WriteString(w, "ok")
 }
 
-// do sends req through retry wrapping logging and returns the response body and the logged entries.
+// do sends the request built by req through retry wrapping logging and returns the response body and the logged entries.
 func do(t *testing.T, handler http.Handler, req func(ctx context.Context, url string) *http.Request, opts ...httpretry.Option) (string, []logEntry) {
 	t.Helper()
 
@@ -114,7 +114,7 @@ func TestEachAttemptIsLoggedOnceWhenRetryWrapsLogging(t *testing.T) {
 	})
 
 	assert.Equal(t, "ok", body)
-	assert.Equal(t, []int{503, 200}, statuses(entries))
+	require.Equal(t, []int{503, 200}, statuses(entries))
 	assert.NotEmpty(t, entries[0].ChildRequestID)
 	assert.NotEqual(t, entries[0].ChildRequestID, entries[1].ChildRequestID)
 }
@@ -130,7 +130,7 @@ func TestPostIsNeitherRetriedNorLoggedTwice(t *testing.T) {
 	})
 
 	assert.Equal(t, []string{`{"n":1}`}, h.bodies)
-	assert.Equal(t, []int{503}, statuses(entries))
+	require.Equal(t, []int{503}, statuses(entries))
 	assert.JSONEq(t, `{"n":1}`, string(entries[0].Request.Body))
 }
 
@@ -147,7 +147,7 @@ func TestStreamedBodyIsReplayedAndLoggedOnEachAttempt(t *testing.T) {
 
 	assert.Equal(t, "ok", body)
 	assert.Equal(t, []string{`{"n":1}`, `{"n":1}`, `{"n":1}`}, h.bodies)
-	assert.Equal(t, []int{503, 503, 200}, statuses(entries))
+	require.Equal(t, []int{503, 503, 200}, statuses(entries))
 
 	for _, e := range entries {
 		assert.JSONEq(t, `{"n":1}`, string(e.Request.Body))
@@ -177,7 +177,7 @@ func TestIdempotentPostIsReplayedWithItsBody(t *testing.T) {
 			}, tt.opts...)
 
 			assert.Equal(t, []string{`{"n":1}`, `{"n":1}`}, h.bodies)
-			assert.Equal(t, []int{503, 200}, statuses(entries))
+			require.Equal(t, []int{503, 200}, statuses(entries))
 			assert.Equal(t, http.MethodPost, entries[1].Request.Method)
 			assert.JSONEq(t, `{"n":1}`, string(entries[1].Request.Body))
 		})
