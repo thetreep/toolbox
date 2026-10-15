@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"io"
 	"strconv"
 	"unicode/utf8"
@@ -210,13 +211,16 @@ func appendXMLUnescaped(dst, s []byte) ([]byte, bool) {
 }
 
 func parseCharRef(ref string) (rune, bool) {
-	digits, base := "", 10
+	var (
+		digits string
+		base   int
+	)
 
 	switch {
 	case len(ref) > 2 && ref[0] == '#' && (ref[1] == 'x' || ref[1] == 'X'):
 		digits, base = ref[2:], 16
 	case len(ref) > 1 && ref[0] == '#':
-		digits = ref[1:]
+		digits, base = ref[1:], 10
 	default:
 		return 0, false
 	}
@@ -236,7 +240,7 @@ func wellFormedXML(doc []byte) bool {
 
 	for {
 		if _, err := d.Token(); err != nil {
-			return err == io.EOF
+			return errors.Is(err, io.EOF)
 		}
 	}
 }
