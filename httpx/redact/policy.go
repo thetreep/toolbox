@@ -26,6 +26,7 @@ type Policy struct {
 	Secrets  Rules
 	PII      Rules
 	Volatile Rules
+	// Embedded keys mark documents inside a string value; strings nested in an object or array under such a key only get the detectors.
 	Embedded []string
 }
 

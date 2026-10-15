@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 )
 
-// Detector classes reported by Scan and used in the typed placeholders.
+// Detector classes used in the typed placeholders.
 const (
 	ClassEmail  = "email"
 	ClassPhone  = "phone"
@@ -79,31 +79,12 @@ var triggers = func() (t [256]bool) {
 	return t
 }()
 
-// Scan reports the detector classes found in b, never the matched values.
-func Scan(b []byte) []string {
-	_, found := scan(nil, b, false, false, allDetectors)
-
-	return classNames(found)
-}
-
-func classNames(found uint16) []string {
-	var out []string
-
-	for d := detector(1); d < detCount; d++ {
-		if found&(1<<d) != 0 {
-			out = append(out, detectorNames[d])
-		}
-	}
-
-	return out
-}
-
 func (r *redactor) scan(dst, s []byte, jsonStr bool) ([]byte, uint16) {
-	return scan(dst, s, jsonStr, true, r.detectors)
+	return scan(dst, s, jsonStr, r.detectors)
 }
 
-// scan runs the enabled detectors in a single left-to-right pass; with rewrite it appends s to dst with matches replaced.
-func scan(dst, s []byte, jsonStr, rewrite bool, enabled detectorSet) ([]byte, uint16) {
+// scan runs the enabled detectors in a single left-to-right pass; it appends s to dst with matches replaced.
+func scan(dst, s []byte, jsonStr bool, enabled detectorSet) ([]byte, uint16) {
 	// FIXME: escaped JSON strings (\u0040, \") and XML entities (&#64;) aren't decoded before detectors run.
 	var (
 		found uint16
@@ -126,17 +107,13 @@ func scan(dst, s []byte, jsonStr, rewrite bool, enabled detectorSet) ([]byte, ui
 
 		found |= 1 << det
 
-		if rewrite {
-			dst = append(dst, s[last:start]...)
-			dst = append(dst, detectorPlaceholders[det]...)
-		}
+		dst = append(dst, s[last:start]...)
+		dst = append(dst, detectorPlaceholders[det]...)
 
 		last, i = end, end
 	}
 
-	if rewrite {
-		dst = append(dst, s[last:]...)
-	}
+	dst = append(dst, s[last:]...)
 
 	return dst, found
 }
