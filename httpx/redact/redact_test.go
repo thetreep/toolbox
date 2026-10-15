@@ -277,8 +277,8 @@ func TestDetectors(t *testing.T) {
 
 	for class, inputs := range positives {
 		for _, in := range inputs {
-			assert.Contains(t, redact.Scan([]byte("x "+in+" y")), class, in)
-			assert.Contains(t, redact.Scan([]byte(in)), class, in)
+			assert.Contains(t, newRedactor().Text("x "+in+" y"), "[REDACTED:"+class+"]", in)
+			assert.Contains(t, newRedactor().Text(in), "[REDACTED:"+class+"]", in)
 		}
 	}
 
@@ -291,7 +291,7 @@ func TestDetectors(t *testing.T) {
 	}
 
 	for _, in := range negatives {
-		assert.Empty(t, redact.Scan([]byte(in)), "%q", in)
+		assert.Equal(t, in, newRedactor().Text(in))
 	}
 }
 
