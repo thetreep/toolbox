@@ -1,0 +1,68 @@
+{
+  "child-request-id": "11111111-2222-4333-8444-555555555555",
+  "duration": "125ms",
+  "durationNanoSeconds": 125000000,
+  "event": "outgoing_http_call",
+  "level": "INFO",
+  "msg": "demo POST api.example.test/v1/search -\u003e 200 (125ms)",
+  "request": {
+    "body": {
+      "email": "[REDACTED:email]",
+      "origin": {
+        "city": "Paris"
+      },
+      "password": "REDACTED"
+    },
+    "bodySize": 81,
+    "headers": {
+      "Authorization": [
+        "REDACTED"
+      ],
+      "Content-Type": [
+        "application/json"
+      ],
+      "User-Agent": [
+        "my-service"
+      ],
+      "X-Parent-Request-Id": [
+        "parent-1"
+      ],
+      "X-Request-Id": [
+        "11111111-2222-4333-8444-555555555555"
+      ]
+    },
+    "hostname": "api.example.test",
+    "method": "POST",
+    "path": "/v1/search",
+    "query": {
+      "key": [
+        "REDACTED"
+      ],
+      "q": [
+        "paris"
+      ]
+    }
+  },
+  "response": {
+    "body": {
+      "routes": [
+        {
+          "distanceMeters": 1444,
+          "token": "REDACTED"
+        }
+      ]
+    },
+    "bodySize": 59,
+    "headers": {
+      "Content-Type": [
+        "application/json; charset=UTF-8"
+      ],
+      "Set-Cookie": [
+        "REDACTED"
+      ]
+    },
+    "status": "OK",
+    "statusCode": 200
+  },
+  "target-api": "demo"
+}
