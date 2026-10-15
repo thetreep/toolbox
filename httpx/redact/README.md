@@ -17,3 +17,7 @@ redact.Policy{PII: redact.Rules{Keys: []string{"customer.name", "$.pin"}}}
 ```
 
 Les règles `Volatile` ont la même sémantique. Les query params, champs de formulaire et headers restent plats : une clé avec des points y est un nom littéral. Un chemin matche aussi une clé JSON ou XML dont le nom contient littéralement les points (`{"customer.name":..}`). Une clé avec un segment vide (`a..b`, `a.`, `.a`, `$.`) fait paniquer `redact.New`.
+
+## Sans PII
+
+`redact.WithoutPII()` ignore les règles `PII` et les détecteurs email, téléphone, PAN et IBAN ; les secrets (règles `Secrets`, JWT, Bearer, Basic) restent redactés, et `Volatile` reste actif avec `WithVolatile()`. Prévu pour les cassettes, qui ne doivent pas fuiter de secrets mais peuvent contenir de fausses PII.
