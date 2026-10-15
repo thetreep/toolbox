@@ -98,8 +98,8 @@ func classNames(found uint16) []string {
 	return out
 }
 
-func (r *redactor) scan(dst, s []byte, jsonStr, rewrite bool) ([]byte, uint16) {
-	return scan(dst, s, jsonStr, rewrite, r.detectors)
+func (r *redactor) scan(dst, s []byte, jsonStr bool) ([]byte, uint16) {
+	return scan(dst, s, jsonStr, true, r.detectors)
 }
 
 // scan runs the enabled detectors in a single left-to-right pass; with rewrite it appends s to dst with matches replaced.
