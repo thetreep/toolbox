@@ -37,7 +37,7 @@ func FuzzJSON(f *testing.F) {
 		f.Add(s)
 	}
 
-	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor()}
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile())}
 
 	f.Fuzz(func(t *testing.T, in string) {
 		for _, r := range redactors {
@@ -110,7 +110,7 @@ func FuzzXML(f *testing.F) {
 		f.Add(s)
 	}
 
-	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor()}
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile())}
 
 	f.Fuzz(func(t *testing.T, in string) {
 		for _, r := range redactors {
@@ -168,7 +168,7 @@ func FuzzBody(f *testing.F) {
 	f.Add(`jean@example.com 0612345678 4111111111111111 FR1420041010050500013M02606`, "text/plain")
 	f.Add(`<a/>`, "text/html; charset=")
 
-	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor()}
+	redactors := []redact.Redactor{newRedactor(redact.WithVolatile()), fuzzPathRedactor(), newWithoutPII(redact.WithVolatile())}
 
 	f.Fuzz(func(t *testing.T, in, contentType string) {
 		for _, r := range redactors {
@@ -186,12 +186,23 @@ func FuzzDetectors(f *testing.F) {
 		f.Add(s)
 	}
 
-	r := newRedactor()
+	r, noPII := newRedactor(), newWithoutPII()
 
 	f.Fuzz(func(t *testing.T, in string) {
 		out := r.Text(in)
 		if len(redact.Scan([]byte(in))) == 0 && out != in {
 			t.Fatalf("Text changed input without a finding: %q -> %q", in, out)
+		}
+
+		if strings.Contains(in, "[REDACTED:") {
+			return
+		}
+
+		got := noPII.Text(in)
+		for _, class := range []string{redact.ClassEmail, redact.ClassPhone, redact.ClassPAN, redact.ClassIBAN} {
+			if strings.Contains(got, "[REDACTED:"+class+"]") {
+				t.Fatalf("WithoutPII applied the %s detector: %q -> %q", class, in, got)
+			}
 		}
 	})
 }

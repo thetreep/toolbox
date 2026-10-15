@@ -95,15 +95,19 @@ type redactor struct {
 	formKeys    map[string]class
 	maxKeyLen   int
 	hasPaths    bool
+	detectors   detectorSet
 }
 
 // Option customizes New.
 type Option func(*options)
 
-type options struct{ volatile bool }
+type options struct{ volatile, withoutPII bool }
 
 // WithVolatile also redacts the Volatile rules, for cassette recording and matching.
 func WithVolatile() Option { return func(o *options) { o.volatile = true } }
+
+// WithoutPII ignores the PII rules and the email, phone, PAN and IBAN detectors; secrets stay redacted.
+func WithoutPII() Option { return func(o *options) { o.withoutPII = true } }
 
 // New compiles p on top of Default(), which cannot be dropped; it panics on a dotted key with an empty segment (a..b, a., .a, $.).
 func New(p Policy, opts ...Option) Redactor {
@@ -119,6 +123,11 @@ func New(p Policy, opts ...Option) Redactor {
 		keys:        map[string]class{},
 		paths:       map[string][]pathRule{},
 		formKeys:    map[string]class{},
+		detectors:   allDetectors,
+	}
+
+	if o.withoutPII {
+		r.detectors = secretDetectors
 	}
 
 	add := func(m map[string]class, names []string, c class) {
@@ -137,7 +146,14 @@ func New(p Policy, opts ...Option) Redactor {
 	rulesets := []struct {
 		rules Rules
 		class class
-	}{{p.Secrets, classSecret}, {p.PII, classSecret}}
+	}{{p.Secrets, classSecret}}
+	if !o.withoutPII {
+		rulesets = append(rulesets, struct {
+			rules Rules
+			class class
+		}{p.PII, classSecret})
+	}
+
 	if o.volatile {
 		rulesets = append(rulesets, struct {
 			rules Rules
@@ -145,8 +161,8 @@ func New(p Policy, opts ...Option) Redactor {
 		}{p.Volatile, classVolatile})
 	}
 
-	// Volatile keys are checked even when not compiled, so a malformed one surfaces without WithVolatile.
-	for _, key := range p.Volatile.Keys {
+	// Keys are checked even when not compiled, so a malformed one surfaces whatever the options.
+	for _, key := range append(append([]string(nil), p.Volatile.Keys...), p.PII.Keys...) {
 		parsePath(key)
 	}
 
@@ -264,7 +280,7 @@ func (r *redactor) RawQuery(raw string) string {
 
 // Text runs the detectors on arbitrary text.
 func (r *redactor) Text(s string) string {
-	out, found := scan(nil, []byte(s), false, true)
+	out, found := r.scan(nil, []byte(s), false, true)
 	if found == 0 {
 		return s
 	}
