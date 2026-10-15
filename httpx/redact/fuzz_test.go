@@ -312,15 +312,20 @@ func FuzzEmbeddedDifferential(f *testing.F) {
 		}
 
 		alone := r.Body(ct, []byte(doc))
-		if ct == "application/json" && !alone.ValidJSON {
-			return
-		}
 
 		outer, _ := json.Marshal(map[string]string{"payload": doc})
 
 		var inJSON struct{ Payload string }
 		if err := json.Unmarshal(r.Body("application/json", outer).Body, &inJSON); err != nil {
 			t.Fatalf("invalid JSON envelope for %q: %v", doc, err)
+		}
+
+		if ct == "application/json" && !alone.ValidJSON {
+			if inJSON.Payload != redact.Placeholder {
+				t.Fatalf("invalid JSON document %q not masked: %q", doc, inJSON.Payload)
+			}
+
+			return
 		}
 
 		if inJSON.Payload != redact.Placeholder && !sameDocument(ct, inJSON.Payload, alone.Body) {
