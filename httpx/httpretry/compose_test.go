@@ -59,7 +59,7 @@ func (f *flaky) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // do sends req through retry wrapping logging and returns the response body and the logged entries.
-func do(t *testing.T, handler http.Handler, req func(url string) *http.Request, opts ...httpretry.Option) (string, []logEntry) {
+func do(t *testing.T, handler http.Handler, req func(ctx context.Context, url string) *http.Request, opts ...httpretry.Option) (string, []logEntry) {
 	t.Helper()
 
 	srv := httptest.NewServer(handler)
@@ -72,7 +72,7 @@ func do(t *testing.T, handler http.Handler, req func(url string) *http.Request, 
 
 	ctx := logger.CtxWithLogger(context.Background(), slog.New(slog.NewJSONHandler(&out, nil)))
 
-	resp, err := client.Do(req(srv.URL).WithContext(ctx))
+	resp, err := client.Do(req(ctx, srv.URL))
 	require.NoError(t, err)
 
 	body, err := io.ReadAll(resp.Body)
@@ -107,8 +107,8 @@ func statuses(entries []logEntry) []int {
 func TestEachAttemptIsLoggedOnceWhenRetryWrapsLogging(t *testing.T) {
 	h := &flaky{failures: 1}
 
-	body, entries := do(t, h, func(url string) *http.Request {
-		req, _ := http.NewRequest(http.MethodGet, url, nil)
+	body, entries := do(t, h, func(ctx context.Context, url string) *http.Request {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 		return req
 	})
@@ -122,8 +122,8 @@ func TestEachAttemptIsLoggedOnceWhenRetryWrapsLogging(t *testing.T) {
 func TestPostIsNeitherRetriedNorLoggedTwice(t *testing.T) {
 	h := &flaky{failures: 5}
 
-	_, entries := do(t, h, func(url string) *http.Request {
-		req, _ := http.NewRequest(http.MethodPost, url, strings.NewReader(`{"n":1}`))
+	_, entries := do(t, h, func(ctx context.Context, url string) *http.Request {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(`{"n":1}`))
 		req.Header.Set("Content-Type", "application/json")
 
 		return req
@@ -138,8 +138,8 @@ func TestStreamedBodyIsReplayedAndLoggedOnEachAttempt(t *testing.T) {
 	h := &flaky{failures: 2}
 
 	// NopCloser hides the length and GetBody, so the retry transport has to buffer the body.
-	body, entries := do(t, h, func(url string) *http.Request {
-		req, _ := http.NewRequest(http.MethodPut, url, io.NopCloser(strings.NewReader(`{"n":1}`)))
+	body, entries := do(t, h, func(ctx context.Context, url string) *http.Request {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodPut, url, io.NopCloser(strings.NewReader(`{"n":1}`)))
 		req.Header.Set("Content-Type", "application/json")
 
 		return req
@@ -168,8 +168,8 @@ func TestIdempotentPostIsReplayedWithItsBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &flaky{failures: 1}
 
-			_, entries := do(t, h, func(url string) *http.Request {
-				req, _ := http.NewRequest(http.MethodPost, url+"/token", io.NopCloser(strings.NewReader(`{"n":1}`)))
+			_, entries := do(t, h, func(ctx context.Context, url string) *http.Request {
+				req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url+"/token", io.NopCloser(strings.NewReader(`{"n":1}`)))
 				req.Header.Set("Content-Type", "application/json")
 				tt.set(req)
 
