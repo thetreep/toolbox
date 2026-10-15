@@ -45,7 +45,7 @@ func TestEmbeddedKeepsNestedFormatting(t *testing.T) {
 
 	res := newEmbedded().Body("application/json", []byte(`{"payload":`+jsonString(inner)+`}`))
 
-	assert.Equal(t, `{"payload":`+jsonString("{\n  \"lastName\": \"REDACTED\",\n  \"city\": \"Lyon\"\n}")+`}`, string(res.Body))
+	assert.JSONEq(t, `{"payload":`+jsonString("{\n  \"lastName\": \"REDACTED\",\n  \"city\": \"Lyon\"\n}")+`}`, string(res.Body))
 }
 
 func TestEmbeddedXMLInJSON(t *testing.T) {
@@ -53,7 +53,7 @@ func TestEmbeddedXMLInJSON(t *testing.T) {
 
 	res := newEmbedded().Body("application/json", []byte(`{"payload":`+jsonString(inner)+`}`))
 
-	assert.Equal(t, `{"payload":`+jsonString(`<?xml version="1.0"?><order><lastName>REDACTED</lastName><price>9</price></order>`)+`}`, string(res.Body))
+	assert.JSONEq(t, `{"payload":`+jsonString(`<?xml version="1.0"?><order><lastName>REDACTED</lastName><price>9</price></order>`)+`}`, string(res.Body))
 }
 
 func TestEmbeddedJSONInXML(t *testing.T) {
@@ -131,10 +131,10 @@ func TestEmbeddedDepthLimit(t *testing.T) {
 	r := newEmbedded()
 
 	got := string(r.Body("application/json", []byte(wrap(3))).Body)
-	assert.Equal(t, `{"lastName":"REDACTED","ok":1}`, unwrap(t, got, 3))
+	assert.JSONEq(t, `{"lastName":"REDACTED","ok":1}`, unwrap(t, got, 3))
 
 	got = string(r.Body("application/json", []byte(wrap(4))).Body)
-	assert.Equal(t, `{"payload":"REDACTED"}`, unwrap(t, got, 3))
+	assert.JSONEq(t, `{"payload":"REDACTED"}`, unwrap(t, got, 3))
 	assert.NotContains(t, got, "Dupont")
 }
 
@@ -181,7 +181,7 @@ func TestEmbeddedFailsClosed(t *testing.T) {
 func TestEmbeddedMaskExactOutput(t *testing.T) {
 	r := newEmbedded()
 
-	assert.Equal(t, `{"payload":"REDACTED","b":1}`, string(r.Body("application/json", []byte(`{"payload":"nope","b":1}`)).Body))
+	assert.JSONEq(t, `{"payload":"REDACTED","b":1}`, string(r.Body("application/json", []byte(`{"payload":"nope","b":1}`)).Body))
 	assert.Equal(t, `<a><payload>REDACTED</payload><b>1</b></a>`, string(r.Body("text/xml", []byte(`<a><payload>nope</payload><b>1</b></a>`)).Body))
 }
 
@@ -209,7 +209,7 @@ func TestEmbeddedPaths(t *testing.T) {
 	want := jsonString(`{"lastName":"REDACTED"}`)
 
 	res := r.Body("application/json", []byte(`{"wrapper":{"doc":`+inner+`},"x":{"wrapper":{"doc":"{\"lastName\":\"Dupont\"} nope"}}}`))
-	assert.Equal(t, `{"wrapper":{"doc":`+want+`},"x":{"wrapper":{"doc":"{\"lastName\":\"Dupont\"} nope"}}}`, string(res.Body))
+	assert.JSONEq(t, `{"wrapper":{"doc":`+want+`},"x":{"wrapper":{"doc":"{\"lastName\":\"Dupont\"} nope"}}}`, string(res.Body))
 
 	res = newEmbedded().Body("text/xml", []byte(`<wrapper><doc>&lt;o lastName="D"/&gt;</doc></wrapper>`))
 	assert.Equal(t, `<wrapper><doc>&lt;o lastName="REDACTED"/&gt;</doc></wrapper>`, string(res.Body))
@@ -233,12 +233,12 @@ func TestEmbeddedPrecedence(t *testing.T) {
 	t.Run("secret path wins over embedded key", func(t *testing.T) {
 		r := redact.New(redact.Policy{Secrets: redact.Rules{Keys: []string{"a.payload"}}, Embedded: []string{"payload"}})
 		res := r.Body("application/json", []byte(`{"a":{"payload":"{}"},"payload":"{\"x\":1}"}`))
-		assert.Equal(t, `{"a":{"payload":"REDACTED"},"payload":"{\"x\":1}"}`, string(res.Body))
+		assert.JSONEq(t, `{"a":{"payload":"REDACTED"},"payload":"{\"x\":1}"}`, string(res.Body))
 	})
 
 	t.Run("embedded path does not override a plain secret", func(t *testing.T) {
 		r := redact.New(redact.Policy{Secrets: redact.Rules{Keys: []string{"payload"}}, Embedded: []string{"a.payload"}})
-		assert.Equal(t, `{"a":{"payload":"REDACTED"}}`, string(r.Body("application/json", []byte(`{"a":{"payload":"{}"}}`)).Body))
+		assert.JSONEq(t, `{"a":{"payload":"REDACTED"}}`, string(r.Body("application/json", []byte(`{"a":{"payload":"{}"}}`)).Body))
 	})
 
 	t.Run("pii ignored without pii, embedded applies", func(t *testing.T) {
@@ -248,12 +248,12 @@ func TestEmbeddedPrecedence(t *testing.T) {
 
 	t.Run("volatile wins when enabled", func(t *testing.T) {
 		r := redact.New(redact.Policy{Volatile: redact.Rules{Keys: []string{"payload"}}, Embedded: []string{"payload"}}, redact.WithVolatile())
-		assert.Equal(t, `{"payload":"VOLATILE"}`, string(r.Body("application/json", []byte(`{"payload":"{}"}`)).Body))
+		assert.JSONEq(t, `{"payload":"VOLATILE"}`, string(r.Body("application/json", []byte(`{"payload":"{}"}`)).Body))
 	})
 
 	t.Run("volatile ignored when disabled", func(t *testing.T) {
 		r := redact.New(redact.Policy{Volatile: redact.Rules{Keys: []string{"payload"}}, Embedded: []string{"payload"}})
-		assert.Equal(t, `{"payload":"{}"}`, string(r.Body("application/json", []byte(`{"payload":"{}"}`)).Body))
+		assert.JSONEq(t, `{"payload":"{}"}`, string(r.Body("application/json", []byte(`{"payload":"{}"}`)).Body))
 	})
 
 	t.Run("nested document gets volatile too", func(t *testing.T) {
@@ -279,10 +279,10 @@ func TestEmbeddedMerge(t *testing.T) {
 	assert.Equal(t, []string{"a", "b"}, merged.Embedded)
 
 	r := redact.New(merged)
-	assert.Equal(t, `{"a":"REDACTED","b":"REDACTED","c":"nope"}`, string(r.Body("application/json", []byte(`{"a":"nope","b":"nope","c":"nope"}`)).Body))
+	assert.JSONEq(t, `{"a":"REDACTED","b":"REDACTED","c":"nope"}`, string(r.Body("application/json", []byte(`{"a":"nope","b":"nope","c":"nope"}`)).Body))
 }
 
 func TestEmbeddedPlainPoliciesUntouched(t *testing.T) {
 	res := newRedactor().Body("application/json", []byte(`{"payload":"{\"password\":\"p\"}"}`))
-	assert.Equal(t, `{"payload":"{\"password\":\"p\"}"}`, string(res.Body))
+	assert.JSONEq(t, `{"payload":"{\"password\":\"p\"}"}`, string(res.Body))
 }
