@@ -122,14 +122,17 @@ func TestRecordThenReplayWithoutLeakingSecrets(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, secret := range []string{
-		"hunter2", "live-secret", "KEY-1", "very-secret-cookie", "resp-secret-token", "jean.dupont", "06 12 34 56 78", "n-1",
+		"hunter2", "live-secret", "KEY-1", "very-secret-cookie", "resp-secret-token", "n-1",
 	} {
 		assert.NotContains(t, string(raw), secret, "cassette must not hold %q", secret)
 	}
 
+	for _, kept := range []string{"jean.dupont@example.com", "06 12 34 56 78"} {
+		assert.Contains(t, string(raw), kept, "PII is left as is in cassettes")
+	}
+
 	assert.Contains(t, string(raw), "VOLATILE")
 	assert.NotContains(t, string(raw), `"92"`, "Content-Length header follows the redacted body")
-	httpvcr.AssertNoPII(t, filepath.Join(dir, "testdata"))
 
 	t.Setenv("CI", "1")
 
@@ -156,58 +159,67 @@ func (p *phaseTB) finish() {
 	}
 }
 
-type captureTB struct {
-	testing.TB
-	errors []string
-}
+// Requests differing only by a PII value must each replay their own response, whatever the call order.
+func TestReplayKeepsRequestsDifferingByPIIApart(t *testing.T) {
+	t.Setenv("CI", "")
+	t.Setenv("K7_RECORD", "")
 
-func (c *captureTB) Errorf(format string, args ...any) {
-	c.errors = append(c.errors, fmt.Sprintf(format, args...))
-}
+	dir := chdirTemp(t)
 
-func TestAssertNoPIIReportsClassesNeverValues(t *testing.T) {
-	dir := t.TempDir()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"greeting":"hello %s","lat":%q}`, strings.Trim(string(body), `{}"name:`), r.URL.Query().Get("lat"))
+	}))
+	defer srv.Close()
 
-	cassette := `---
-version: 2
-interactions:
-    - id: 0
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        host: api.example.test
-        body: '{"contact":"jean.dupont@example.com"}'
-        headers:
-            Authorization:
-                - Bearer abcdef1234567890xyz
-        url: https://api.example.test/x
-        method: POST
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 2
-        body: '{"card":"4111 1111 1111 1111"}'
-        headers: {}
-        status: 200 OK
-        code: 200
-        duration: 1ms
-`
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Leaky_api.k7.yaml"), []byte(cassette), 0o644))
+	call := func(client *http.Client, name, lat string) string {
+		t.Helper()
 
-	tb := &captureTB{TB: t}
-	httpvcr.AssertNoPII(tb, dir)
+		req, err := http.NewRequest(http.MethodPost, srv.URL+"/hello?lat="+lat, strings.NewReader(`{"name":"`+name+`"}`))
+		require.NoError(t, err)
 
-	require.Len(t, tb.errors, 3)
-	joined := strings.Join(tb.errors, "\n")
-	assert.Contains(t, joined, "Leaky_api.k7.yaml")
-	assert.Contains(t, joined, "email")
-	assert.Contains(t, joined, "bearer")
-	assert.Contains(t, joined, "pan")
+		req.Header.Set("Content-Type", "application/json")
 
-	for _, leaked := range []string{"jean.dupont", "abcdef1234567890xyz", "4111"} {
-		assert.NotContains(t, joined, leaked)
+		resp, err := client.Do(req)
+		require.NoError(t, err)
+
+		got, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+
+		return string(got)
 	}
+
+	policy := redact.Policy{PII: redact.Rules{Keys: []string{"name"}, QueryParams: []string{"lat"}}}
+
+	recorder := &phaseTB{TB: t, name: "Phase"}
+	client, recording := httpvcr.NewClient(recorder, "api", policy, nil)
+	assert.True(t, recording)
+
+	jean := call(client, "Jean", "48.85")
+	marie := call(client, "Marie", "2.35")
+	recorder.finish()
+
+	require.NotEqual(t, jean, marie)
+
+	cassettes, err := filepath.Glob(filepath.Join(dir, "testdata", "*.k7.yaml"))
+	require.NoError(t, err)
+	require.Len(t, cassettes, 1)
+
+	raw, err := os.ReadFile(cassettes[0])
+	require.NoError(t, err)
+
+	for _, kept := range []string{"Jean", "Marie", "48.85", "2.35"} {
+		assert.Contains(t, string(raw), kept)
+	}
+
+	t.Setenv("CI", "1")
+
+	replayer := &phaseTB{TB: t, name: "Phase"}
+	client, recording = httpvcr.NewClient(replayer, "api", policy, nil)
+	assert.False(t, recording)
+
+	assert.Equal(t, marie, call(client, "Marie", "2.35"))
+	assert.Equal(t, jean, call(client, "Jean", "48.85"))
+	replayer.finish()
 }

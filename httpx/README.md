@@ -17,7 +17,7 @@ La v1 vivait dans un seul service et avait trois défauts :
 - `bodysink` : au-delà du budget, le body complet (redacté) part dans GCS en async, le log garde la preview et `bodyRef` (`bodyRefPartial: true` si la capture a été coupée avant d'être envoyée au sink). `WithBodySinkAlways` envoie tous les bodies non binaires au sink, pas seulement ceux qui dépassent le budget (JSON brut plus simple à copier que l'UI Cloud Logging) : le body reste loggé inline quand il tient, avec `bodyRef` en plus.
 - `httpretry` : opt-in, séparé. Rejoue seulement GET/HEAD/OPTIONS/PUT/DELETE ou une requête avec `Idempotency-Key` (garde-fou toujours actif, `WithShouldRetry` choisit seulement quels échecs rejouer), respecte `Retry-After`.
   - `WithIdempotent` déclare d'autres requêtes rejouables (ex. un POST de token OAuth).
-- `httpvcr` : toujours go-vcr v4 et les mêmes cassettes `.k7.yaml`. La cassette est redactée à l'enregistrement, le matcher compare des copies normalisées.
+- `httpvcr` : toujours go-vcr v4 et les mêmes cassettes `.k7.yaml`. À l'enregistrement, la cassette est redactée des secrets et les valeurs `Volatile` sont normalisées ; la PII reste (`redact.WithoutPII()`), les tests n'utilisent que de fausses données. Masquer la PII rendrait identiques deux requêtes qui ne diffèrent que par une valeur PII (coordonnées, noms…), et le replay renverrait les réponses dans l'ordre d'enregistrement. Le matcher compare des copies normalisées de la même façon. Les logs, eux, redactent toujours la PII.
 
 ## Usage
 
@@ -42,7 +42,6 @@ En test :
 ```go
 client, recording := httpvcr.NewClient(t, "example-api", policy, nil)
 // ...
-httpvcr.AssertNoPII(t, "testdata") // dans un test dédié, échoue si une cassette contient de la PII
 ```
 
 `CI` force le replay, `K7_RECORD=1` force le réenregistrement, sinon la cassette est enregistrée si absente.

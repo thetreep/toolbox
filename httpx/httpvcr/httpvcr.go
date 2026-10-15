@@ -1,4 +1,4 @@
-// Package httpvcr records and replays HTTP calls in tests, with the redaction policy applied to cassettes.
+// Package httpvcr records and replays HTTP calls in tests, stripping secrets and normalizing volatile values in cassettes.
 package httpvcr
 
 import (
@@ -31,7 +31,7 @@ func NewClient(
 		base = http.DefaultTransport
 	}
 
-	redactor := redact.New(policy, redact.WithVolatile())
+	redactor := cassetteRedactor(policy)
 
 	rec, err := recorder.New(
 		"testdata/"+t.Name()+"_"+apiName+".k7",
@@ -56,6 +56,11 @@ func NewClient(
 	return &http.Client{Transport: transport}, rec.IsRecording()
 }
 
+// cassetteRedactor keeps PII in cassettes: masking it would make requests differing only by a PII value match each other.
+func cassetteRedactor(policy redact.Policy) redact.Redactor {
+	return redact.New(policy, redact.WithVolatile(), redact.WithoutPII())
+}
+
 func recordMode() recorder.Mode {
 	if os.Getenv("CI") != "" {
 		return recorder.ModeReplayOnly
@@ -68,7 +73,7 @@ func recordMode() recorder.Mode {
 	return recorder.ModeRecordOnce
 }
 
-// saveHook redacts a freshly recorded interaction before it reaches the cassette.
+// saveHook strips secrets and normalizes volatile values of a freshly recorded interaction before it reaches the cassette.
 func saveHook(red redact.Redactor) recorder.HookFunc {
 	return func(i *cassette.Interaction) error {
 		u, err := url.Parse(i.Request.URL)

@@ -42,7 +42,7 @@ func liveRequest(t *testing.T, body string) *http.Request {
 }
 
 func TestMatcherComparesNormalizedCopiesAndLeavesBothSidesUntouched(t *testing.T) {
-	red := redact.New(redact.Policy{}, redact.WithVolatile())
+	red := cassetteRedactor(redact.Policy{})
 	match := matcher(red)
 
 	live := liveRequest(t, `{"password":"hunter2","n":1}`)
@@ -63,7 +63,7 @@ func TestMatcherComparesNormalizedCopiesAndLeavesBothSidesUntouched(t *testing.T
 }
 
 func TestMatcherDetectsRealDifferences(t *testing.T) {
-	match := matcher(redact.New(redact.Policy{}, redact.WithVolatile()))
+	match := matcher(cassetteRedactor(redact.Policy{}))
 
 	assert.False(t, match(liveRequest(t, `{"password":"hunter2","n":2}`), savedRequest()), "a different body")
 
@@ -74,4 +74,25 @@ func TestMatcherDetectsRealDifferences(t *testing.T) {
 	other = liveRequest(t, `{"password":"hunter2","n":1}`)
 	other.Header.Set("Content-Type", "text/plain")
 	assert.False(t, match(other, savedRequest()), "a different header")
+}
+
+func TestMatcherDistinguishesRequestsDifferingByPIIOnly(t *testing.T) {
+	match := matcher(cassetteRedactor(redact.Policy{PII: redact.Rules{Keys: []string{"name"}, QueryParams: []string{"lat"}}}))
+
+	saved := savedRequest()
+	saved.Body = `{"name":"Jean","n":1}`
+	saved.URL = "https://api.example.test/x?lat=48.85&q=paris"
+	saved.Form = url.Values{"lat": {"48.85"}, "q": {"paris"}}
+
+	live := liveRequest(t, `{"name":"Jean","n":1}`)
+	live.URL.RawQuery = "q=paris&lat=48.85"
+	assert.True(t, match(live, saved))
+
+	live = liveRequest(t, `{"name":"Marie","n":1}`)
+	live.URL.RawQuery = "q=paris&lat=48.85"
+	assert.False(t, match(live, saved), "a different PII body value")
+
+	live = liveRequest(t, `{"name":"Jean","n":1}`)
+	live.URL.RawQuery = "q=paris&lat=2.35"
+	assert.False(t, match(live, saved), "a different PII query value")
 }
