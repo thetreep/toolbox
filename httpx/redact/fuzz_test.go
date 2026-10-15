@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/thetreep/toolbox/httpx/redact"
 )
@@ -281,4 +282,76 @@ func FuzzEmbeddedXMLContent(f *testing.F) {
 			t.Fatalf("content %q leaked: %q", content, got.Payload)
 		}
 	})
+}
+
+// An embedded document is either masked or redacted exactly as the same document sent on its own.
+func FuzzEmbeddedDifferential(f *testing.F) {
+	f.Add(`{"lastName":"Dupont","city":"Lyon"}`)
+	f.Add(` [{"token":"x"},{"lastName":"a"}] `)
+	f.Add(`<o><lastName>Dupont</lastName><t>jean@example.com</t></o>`)
+	f.Add(`<?xml version="1.0"?><o a="1"><![CDATA[x]]><lastName/></o>`)
+	f.Add(`<o>&amp;nbsp;</o>`)
+
+	r := fuzzEmbeddedRedactor()
+	escape := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+
+	f.Fuzz(func(t *testing.T, doc string) {
+		if !utf8.ValidString(doc) || strings.TrimSpace(doc) == "" || strings.Contains(strings.ToLower(doc), "payload") {
+			return
+		}
+
+		var ct string
+
+		switch strings.TrimSpace(doc)[0] {
+		case '{', '[':
+			ct = "application/json"
+		case '<':
+			ct = "application/xml"
+		default:
+			return
+		}
+
+		alone := r.Body(ct, []byte(doc))
+		if ct == "application/json" && !alone.ValidJSON {
+			return
+		}
+
+		outer, _ := json.Marshal(map[string]string{"payload": doc})
+
+		var inJSON struct{ Payload string }
+		if err := json.Unmarshal(r.Body("application/json", outer).Body, &inJSON); err != nil {
+			t.Fatalf("invalid JSON envelope for %q: %v", doc, err)
+		}
+
+		if inJSON.Payload != redact.Placeholder && !sameDocument(ct, inJSON.Payload, alone.Body) {
+			t.Fatalf("JSON envelope: got %q, alone %q", inJSON.Payload, alone.Body)
+		}
+
+		var inXML struct {
+			Payload string `xml:"payload"`
+		}
+		envelope := []byte("<r><payload>" + escape.Replace(doc) + "</payload></r>")
+		// XML parsers turn CR into LF, so the decoded payload would differ for a reason unrelated to redaction.
+		if strings.Contains(doc, "\r") || xml.Unmarshal(envelope, &inXML) != nil {
+			return
+		}
+
+		if err := xml.Unmarshal(r.Body("application/xml", envelope).Body, &inXML); err != nil {
+			t.Fatalf("invalid XML envelope for %q: %v", doc, err)
+		}
+
+		if inXML.Payload != redact.Placeholder && !sameDocument(ct, inXML.Payload, alone.Body) {
+			t.Fatalf("XML envelope: got %q, alone %q", inXML.Payload, alone.Body)
+		}
+	})
+}
+
+func sameDocument(ct, nested string, alone []byte) bool {
+	if ct != "application/json" {
+		return strings.TrimSpace(nested) == strings.TrimSpace(string(alone))
+	}
+
+	var a, b bytes.Buffer
+
+	return json.Compact(&a, []byte(nested)) == nil && json.Compact(&b, alone) == nil && a.String() == b.String()
 }

@@ -36,7 +36,7 @@ func (r *redactor) nested(doc []byte) ([]byte, bool) {
 	return nil, false
 }
 
-// jsonEmbedded appends the redacted JSON string whose raw content is given, masked when it is no well-formed document.
+// jsonEmbedded appends the redacted JSON string whose raw content is given, masked when it is not a well-formed document.
 func (r *redactor) jsonEmbedded(dst, content []byte, wellFormed bool) []byte {
 	if doc, ok := decodeJSONString(content, wellFormed); ok {
 		if len(bytes.TrimSpace(doc)) == 0 {
@@ -97,8 +97,7 @@ func appendJSONEscaped(dst, s []byte) []byte {
 	return dst
 }
 
-// xmlEmbedded redacts the content of the element whose start tag ends at src[i] as a nested document and appends it escaped.
-// It returns the index of the end tag; false (nothing appended) when the content is not plain text and CDATA, or not a document.
+// xmlEmbedded appends the escaped redacted document held by the element whose start tag ends at src[i], returning its end tag index; false appends nothing.
 func (r *redactor) xmlEmbedded(dst *[]byte, src []byte, i int) (int, bool) {
 	var doc []byte
 
