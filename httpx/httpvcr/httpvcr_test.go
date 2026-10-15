@@ -2,6 +2,7 @@ package httpvcr_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -128,7 +129,7 @@ func TestRecordThenReplayWithoutLeakingSecrets(t *testing.T) {
 	}
 
 	for _, kept := range []string{"jean.dupont@example.com", "06 12 34 56 78"} {
-		assert.Contains(t, string(raw), kept, "PII is left as is in cassettes")
+		assert.Contains(t, string(raw), kept)
 	}
 
 	assert.Contains(t, string(raw), "VOLATILE")
@@ -167,9 +168,10 @@ func TestReplayKeepsRequestsDifferingByPIIApart(t *testing.T) {
 	dir := chdirTemp(t)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := io.ReadAll(r.Body)
+		var in struct{ Name string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = fmt.Fprintf(w, `{"greeting":"hello %s","lat":%q}`, strings.Trim(string(body), `{}"name:`), r.URL.Query().Get("lat"))
+		_, _ = fmt.Fprintf(w, `{"greeting":"hello %s","lat":%q}`, in.Name, r.URL.Query().Get("lat"))
 	}))
 	defer srv.Close()
 
