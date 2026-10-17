@@ -13,6 +13,7 @@ func Error(ctx context.Context, err error, attrs ...any) {
 
 	attrs = append(attrs, slog.Any("stacktrace", errtrace.FormatString(err)))
 	attrs = append(attrs, getAttributesFromErr(err)...)
+	attrs = append(attrs, getAttributesFromErrorFunc(ctx, err)...)
 
 	logAttrs(ctx, getErrorLevel(err), err.Error(), attrs...)
 }
