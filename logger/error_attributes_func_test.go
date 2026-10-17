@@ -99,6 +99,23 @@ func TestCtxWithErrorAttributesFunc(t *testing.T) {
 	}
 }
 
+func TestCtxWithErrorAttributesFuncOrder(t *testing.T) {
+	handler := InMemoryHandler(slog.LevelDebug)
+	ctx := CtxWithLogger(context.Background(), slog.New(handler))
+	ctx = CtxWithErrorAttributesFunc(ctx, func(error) []any { return []any{slog.String("from_func", "yes")} })
+
+	Error(ctx, ErrWithAttributes(errors.New("boom"), slog.String("from_err", "yes")), slog.String("from_call", "yes"))
+
+	require.Len(t, handler.GetLogs(), 1)
+	var keys []string
+	handler.GetLogs()[0].Attrs(func(attr slog.Attr) bool {
+		keys = append(keys, attr.Key)
+
+		return true
+	})
+	require.Equal(t, []string{"from_call", "stacktrace", "from_err", "from_func"}, keys)
+}
+
 func TestCtxWithErrorAttributesFuncKeepsSourceLocation(t *testing.T) {
 	handler := InMemoryHandler(slog.LevelDebug)
 	ctx := CtxWithLogger(context.Background(), slog.New(WrapHandlerToFixStackTrace(handler)))
@@ -110,11 +127,11 @@ func TestCtxWithErrorAttributesFuncKeepsSourceLocation(t *testing.T) {
 	Error(ctx, errors.New("test"))
 	require.Len(t, handler.GetLogs(), 1)
 	require.NoError(t, sourcePrinter.Handle(ctx, handler.GetLogs()[0]))
-	require.Contains(t, buf.String(), "logger/error_attributes_func_test.go:110")
+	require.Contains(t, buf.String(), "logger/error_attributes_func_test.go:127")
 
 	buf.Reset()
 	ErrorAsWarning(ctx, errors.New("test"))
 	require.Len(t, handler.GetLogs(), 2)
 	require.NoError(t, sourcePrinter.Handle(ctx, handler.GetLogs()[1]))
-	require.Contains(t, buf.String(), "logger/error_attributes_func_test.go:116")
+	require.Contains(t, buf.String(), "logger/error_attributes_func_test.go:133")
 }

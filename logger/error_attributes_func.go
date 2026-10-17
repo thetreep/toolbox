@@ -2,7 +2,7 @@ package logger
 
 import "context"
 
-// CtxWithErrorAttributesFunc sets a function whose result is added to the attributes of every error logged with this context.
+// CtxWithErrorAttributesFunc sets fn to run on each logged error, its attributes coming after the error's own.
 func CtxWithErrorAttributesFunc(ctx context.Context, fn func(err error) []any) context.Context {
 	return context.WithValue(ctx, errorAttributesFuncCtxKey{}, fn)
 }
