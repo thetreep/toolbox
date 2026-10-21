@@ -8,9 +8,12 @@ import (
 	"crypto/x509"
 	"errors"
 	"io"
+	"math"
 	"math/rand/v2"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,6 +24,9 @@ const (
 	defaultMaxDelay      = 2 * time.Second
 	defaultMaxBufferSize = 10 << 20
 	drainLimit           = 4 << 10
+	maxRateLimitJitter   = time.Second
+	// Rate-limit reset values from this magnitude up are Unix timestamps, not delays.
+	unixTimestampFloor = 1e9
 )
 
 // ShouldRetry decides whether a finished attempt must be retried; exactly one of resp and err is non-nil.
@@ -50,8 +56,21 @@ func WithIdempotent(fn func(*http.Request) bool) Option {
 	return func(t *transport) { t.idempotent = fn }
 }
 
+// WithRateLimitReset makes a 429 without Retry-After wait for X-Ratelimit-Reset, else RateLimit-Reset, plus up to 1s of jitter.
+// A value below 1e9 is delta-seconds, anything above a Unix timestamp; zero, negative or unreadable values are ignored.
+func WithRateLimitReset() Option { return func(t *transport) { t.rateLimitReset = true } }
+
 // WithMaxBufferedBody bounds the body buffered to rewind requests without GetBody (default 10 MiB).
 func WithMaxBufferedBody(bytes int) Option { return func(t *transport) { t.maxBuffered = bytes } }
+
+// IdempotentPaths reports requests using method whose URL path ends with one of suffixes, for WithIdempotent.
+func IdempotentPaths(method string, suffixes ...string) func(*http.Request) bool {
+	return func(req *http.Request) bool {
+		return req.Method == method && slices.ContainsFunc(suffixes, func(suffix string) bool {
+			return strings.HasSuffix(req.URL.Path, suffix)
+		})
+	}
+}
 
 // Transport is an opt-in retrying http.RoundTripper, meant to wrap the logging transport; the pointer alias leaves no usable zero value.
 type Transport = *transport
@@ -66,9 +85,12 @@ type transport struct {
 	shouldRetry  ShouldRetry
 	idempotent   func(*http.Request) bool
 
-	now    func() time.Time
-	sleep  func(ctx context.Context, d time.Duration) error
-	jitter func(d time.Duration) time.Duration
+	rateLimitReset bool
+
+	now             func() time.Time
+	sleep           func(ctx context.Context, d time.Duration) error
+	jitter          func(d time.Duration) time.Duration
+	rateLimitJitter func() time.Duration
 }
 
 // NewTransport wraps base (http.DefaultTransport when nil).
@@ -88,6 +110,8 @@ func NewTransport(base http.RoundTripper, opts ...Option) Transport {
 		now:          time.Now,
 		sleep:        sleepContext,
 		jitter:       func(d time.Duration) time.Duration { return d/2 + rand.N(d/2+1) },
+
+		rateLimitJitter: func() time.Duration { return rand.N(maxRateLimitJitter + 1) },
 	}
 
 	for _, opt := range opts {
@@ -165,7 +189,7 @@ func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		delay := t.backoff(attempt)
 
 		if resp != nil {
-			if wait, ok := retryAfter(resp, t.now()); ok {
+			if wait, ok := t.serverAdvisedWait(resp); ok {
 				delay = max(delay, wait)
 			}
 		}
@@ -235,6 +259,41 @@ func (t *transport) backoff(attempt int) time.Duration {
 	}
 
 	return t.jitter(min(d, t.maxDelay))
+}
+
+func (t *transport) serverAdvisedWait(resp *http.Response) (time.Duration, bool) {
+	if wait, ok := retryAfter(resp, t.now()); ok {
+		return wait, true
+	}
+
+	if !t.rateLimitReset || resp.StatusCode != http.StatusTooManyRequests {
+		return 0, false
+	}
+
+	wait, ok := rateLimitReset(resp, t.now())
+	if !ok {
+		return 0, false
+	}
+
+	// Spreads concurrent callers that were all told the same reset, so they don't re-burst together.
+	return wait + t.rateLimitJitter(), true
+}
+
+func rateLimitReset(resp *http.Response, now time.Time) (time.Duration, bool) {
+	for _, name := range []string{"X-Ratelimit-Reset", "RateLimit-Reset"} {
+		value, err := strconv.ParseFloat(resp.Header.Get(name), 64)
+		if err != nil || math.IsNaN(value) || value <= 0 {
+			continue
+		}
+
+		if value >= unixTimestampFloor {
+			return max(time.Unix(int64(min(value, 1<<40)), 0).Sub(now), 0), true
+		}
+
+		return time.Duration(value * float64(time.Second)), true
+	}
+
+	return 0, false
 }
 
 func retryAfter(resp *http.Response, now time.Time) (time.Duration, bool) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -73,6 +74,7 @@ func newTestTransport(base http.RoundTripper, opts ...Option) (Transport, *[]tim
 
 	tr.now = func() time.Time { return clock }
 	tr.jitter = func(d time.Duration) time.Duration { return d }
+	tr.rateLimitJitter = func() time.Duration { return 0 }
 	tr.sleep = func(_ context.Context, d time.Duration) error {
 		slept = append(slept, d)
 		clock = clock.Add(d)
@@ -402,6 +404,190 @@ func TestSingleTryIsAPassThrough(t *testing.T) {
 	tr, _ := newTestTransport(base, WithMaxTries(1))
 
 	resp, err := do(t, tr, "GET", "")
+	require.NoError(t, err)
+	assert.Equal(t, 503, resp.StatusCode)
+	assert.Len(t, base.calls, 1)
+}
+
+func TestRateLimitResetWait(t *testing.T) {
+	t.Parallel()
+
+	clock := time.Date(2026, 4, 21, 8, 0, 0, 0, time.UTC)
+	unixIn := func(d time.Duration) string { return strconv.FormatInt(clock.Add(d).Unix(), 10) }
+	backoff := 200 * time.Millisecond
+
+	tests := []struct {
+		name    string
+		status  int
+		headers http.Header
+		jitter  time.Duration
+		want    time.Duration
+	}{
+		{name: "delta seconds", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"2"}}, want: 2 * time.Second},
+		{name: "fractional seconds", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"1.5"}}, want: 1500 * time.Millisecond},
+		{name: "IETF draft header", status: 429, headers: http.Header{"Ratelimit-Reset": {"3"}}, want: 3 * time.Second},
+		{name: "X-Ratelimit-Reset wins over the draft header", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"1"}, "Ratelimit-Reset": {"3"}}, want: time.Second},
+		{name: "unreadable first header falls through", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"soon"}, "Ratelimit-Reset": {"3"}}, want: 3 * time.Second},
+		{name: "unix timestamp", status: 429, headers: http.Header{"X-Ratelimit-Reset": {unixIn(7 * time.Second)}}, want: 7 * time.Second},
+		{name: "unix timestamp in the past", status: 429, headers: http.Header{"X-Ratelimit-Reset": {unixIn(-time.Minute)}}, want: backoff},
+		{name: "jitter is added", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"1"}}, jitter: 700 * time.Millisecond, want: 1700 * time.Millisecond},
+		{name: "reset shorter than the backoff keeps the backoff", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"0.05"}}, want: backoff},
+		{name: "zero", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"0"}}, jitter: time.Second, want: backoff},
+		{name: "negative", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"-4"}}, jitter: time.Second, want: backoff},
+		{name: "unreadable", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"soon"}}, jitter: time.Second, want: backoff},
+		{name: "not a number", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"NaN"}}, want: backoff},
+		{name: "absent", status: 429, want: backoff},
+		{name: "Retry-After wins", status: 429, headers: http.Header{"X-Ratelimit-Reset": {"1"}, "Retry-After": {"4"}}, jitter: time.Second, want: 4 * time.Second},
+		{name: "only 429 is concerned", status: 503, headers: http.Header{"X-Ratelimit-Reset": {"2"}}, want: backoff},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			base := &script{steps: []step{{status: tt.status, headers: tt.headers}, {status: 200}}}
+			tr, slept := newTestTransport(base, WithRateLimitReset())
+			tr.rateLimitJitter = func() time.Duration { return tt.jitter }
+
+			resp, err := do(t, tr, "GET", "")
+			require.NoError(t, err)
+			assert.Equal(t, 200, resp.StatusCode)
+			assert.Equal(t, []time.Duration{tt.want}, *slept)
+		})
+	}
+}
+
+func TestRateLimitResetIsIgnoredByDefault(t *testing.T) {
+	t.Parallel()
+
+	base := &script{steps: []step{{status: 429, headers: http.Header{"X-Ratelimit-Reset": {"5"}}}, {status: 200}}}
+	tr, slept := newTestTransport(base)
+
+	_, err := do(t, tr, "GET", "")
+	require.NoError(t, err)
+	assert.Equal(t, []time.Duration{200 * time.Millisecond}, *slept)
+}
+
+func TestRateLimitJitterStaysWithinOneSecond(t *testing.T) {
+	t.Parallel()
+
+	tr := NewTransport(nil)
+
+	var maxSeen time.Duration
+
+	for range 1000 {
+		jitter := tr.rateLimitJitter()
+		require.GreaterOrEqual(t, jitter, time.Duration(0))
+		require.LessOrEqual(t, jitter, time.Second)
+
+		maxSeen = max(maxSeen, jitter)
+	}
+
+	assert.Greater(t, maxSeen, 500*time.Millisecond, "the jitter is spread, not constant")
+}
+
+func TestRateLimitResetBeyondMaxElapsedGivesUp(t *testing.T) {
+	t.Parallel()
+
+	base := &script{steps: []step{{status: 429, headers: http.Header{"X-Ratelimit-Reset": {"60"}}}, {status: 200}}}
+	tr, slept := newTestTransport(base, WithRateLimitReset())
+
+	resp, err := do(t, tr, "GET", "")
+	require.NoError(t, err)
+	assert.Equal(t, 429, resp.StatusCode)
+	assert.Len(t, base.calls, 1)
+	assert.Empty(t, *slept)
+}
+
+func TestRateLimitResetPlusJitterCountsAgainstMaxElapsed(t *testing.T) {
+	t.Parallel()
+
+	base := &script{steps: []step{{status: 429, headers: http.Header{"X-Ratelimit-Reset": {"9.5"}}}, {status: 200}}}
+	tr, _ := newTestTransport(base, WithRateLimitReset())
+	tr.rateLimitJitter = func() time.Duration { return time.Second }
+
+	resp, err := do(t, tr, "GET", "")
+	require.NoError(t, err)
+	assert.Equal(t, 429, resp.StatusCode, "9.5s + 1s exceeds the 10s budget")
+	assert.Len(t, base.calls, 1)
+}
+
+func TestContextCancelStopsTheRateLimitWait(t *testing.T) {
+	t.Parallel()
+
+	base := &script{steps: []step{{status: 429, headers: http.Header{"X-Ratelimit-Reset": {"3600"}}}}}
+	tr := NewTransport(base, WithRateLimitReset(), WithMaxElapsed(48*time.Hour))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://api.example.test/x", nil)
+
+	_, err := tr.RoundTrip(req)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.Len(t, base.calls, 1)
+}
+
+func TestIdempotentPaths(t *testing.T) {
+	t.Parallel()
+
+	matches := IdempotentPaths(http.MethodPost, "/search", "/v2/lookup")
+
+	tests := []struct {
+		method string
+		path   string
+		want   bool
+	}{
+		{http.MethodPost, "/search", true},
+		{http.MethodPost, "/api/prefix/search", true},
+		{http.MethodPost, "/api/v2/lookup", true},
+		{http.MethodPost, "/searchX", false},
+		{http.MethodPost, "/search/extra", false},
+		{http.MethodPost, "/research", false},
+		{http.MethodPost, "/lookup", false},
+		{http.MethodPatch, "/search", false},
+		{http.MethodGet, "/search", false},
+		{http.MethodPost, "/", false},
+	}
+
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, matches(mustRequest(t, tt.method, tt.path)), "%s %s", tt.method, tt.path)
+	}
+
+	assert.False(t, IdempotentPaths(http.MethodPost)(mustRequest(t, http.MethodPost, "/search")), "no suffix matches nothing")
+}
+
+func mustRequest(t *testing.T, method, path string) *http.Request {
+	t.Helper()
+
+	req, err := http.NewRequest(method, "https://api.example.test"+path, nil)
+	require.NoError(t, err)
+
+	return req
+}
+
+func TestIdempotentPathsDeclarePostsRetryableThroughTheTransport(t *testing.T) {
+	t.Parallel()
+
+	base := &script{steps: []step{{status: 503}, {status: 200}}}
+	tr, _ := newTestTransport(base, WithIdempotent(IdempotentPaths(http.MethodPost, "/search")))
+
+	req, err := http.NewRequest(http.MethodPost, "https://api.example.test/v1/search", io.NopCloser(strings.NewReader(`{"q":1}`)))
+	require.NoError(t, err)
+
+	resp, err := tr.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	require.Len(t, base.calls, 2)
+	assert.Equal(t, `{"q":1}`, base.calls[1].body)
+
+	base = &script{steps: []step{{status: 503}, {status: 200}}}
+	tr, _ = newTestTransport(base, WithIdempotent(IdempotentPaths(http.MethodPost, "/search")))
+
+	req, err = http.NewRequest(http.MethodPost, "https://api.example.test/v1/book", strings.NewReader(`{"q":1}`))
+	require.NoError(t, err)
+
+	resp, err = tr.RoundTrip(req)
 	require.NoError(t, err)
 	assert.Equal(t, 503, resp.StatusCode)
 	assert.Len(t, base.calls, 1)
