@@ -49,7 +49,6 @@ func (c CtxProxyHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (c CtxProxyHandler) Handle(ctx context.Context, record slog.Record) error {
-	ctx = storeProgramCounter(ctx, 1)
 	record.Add(getAttributesFromContext(ctx)...)
 
 	return errtrace.Wrap(c.getHandler(ctx).Handle(ctx, record))
