@@ -39,7 +39,6 @@ func Warn(ctx context.Context, msg string, attrs ...any) {
 }
 
 func logAttrs(ctx context.Context, level slog.Level, msg string, attrs ...any) {
-	ctx = storeProgramCounter(ctx, 1)
 	logger := GetLoggerFromContext(ctx)
 	attrs = append(attrs, getAttributesFromContext(ctx)...)
 
